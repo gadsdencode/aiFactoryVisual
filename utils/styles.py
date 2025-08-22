@@ -553,8 +553,56 @@ def apply_custom_styles(theme='light'):
             color: {text_color} !important;
         }}
         
+        /* Enhanced JSON display styling for dark mode */
+        .stJson {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+            padding: 16px !important;
+        }}
+        
         .stJson pre {{
             background-color: {card_bg} !important;
+            color: {text_color} !important;
+            margin: 0 !important;
+        }}
+        
+        .stJson pre code {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* JSON syntax highlighting for better readability */
+        .stJson .token.string {{
+            color: {'#84CC16' if theme == 'dark' else '#059669'} !important;
+        }}
+        
+        .stJson .token.number {{
+            color: {'#F59E0B' if theme == 'dark' else '#D97706'} !important;
+        }}
+        
+        .stJson .token.boolean {{
+            color: {'#8B5CF6' if theme == 'dark' else '#7C3AED'} !important;
+        }}
+        
+        .stJson .token.keyword {{
+            color: {'#06B6D4' if theme == 'dark' else '#0891B2'} !important;
+        }}
+        
+        /* Ensure all JSON container elements have proper styling */
+        [data-testid="stJson"] {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+        }}
+        
+        [data-testid="stJson"] > div {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        [data-testid="stJson"] * {{
             color: {text_color} !important;
         }}
         
