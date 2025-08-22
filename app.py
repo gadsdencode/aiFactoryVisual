@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 from components.training_dashboard import render_training_dashboard
 from components.model_comparison import render_model_comparison
 from components.configuration import render_configuration
-from utils.data_generator import generate_training_data, generate_model_comparison_data
+from utils.data_generator import generate_model_comparison_data
 from utils.styles import apply_custom_styles
+from backend.training_manager import get_training_manager
 
 # Configure page
 st.set_page_config(
@@ -26,25 +27,8 @@ st.set_page_config(
 apply_custom_styles(st.session_state.get('theme', 'light'))
 
 # Initialize session state
-if 'training_active' not in st.session_state:
-    st.session_state.training_active = False
-if 'training_paused' not in st.session_state:
-    st.session_state.training_paused = False
-if 'current_epoch' not in st.session_state:
-    st.session_state.current_epoch = 0
-if 'training_data' not in st.session_state:
-    st.session_state.training_data = generate_training_data()
 if 'model_data' not in st.session_state:
     st.session_state.model_data = generate_model_comparison_data()
-if 'config' not in st.session_state:
-    st.session_state.config = {
-        'learning_rate': 0.001,
-        'batch_size': 32,
-        'max_epochs': 100,
-        'model_name': 'llama-2-7b',
-        'optimizer': 'AdamW',
-        'warmup_steps': 1000
-    }
 if 'theme' not in st.session_state:
     st.session_state.theme = 'light'
 
@@ -73,17 +57,21 @@ def main():
     )
     
     # Pipeline status in sidebar
+    training_manager = get_training_manager()
+    status = training_manager.get_status()
+    config = training_manager.get_config()
+    
     st.sidebar.markdown("### Pipeline Status")
-    if st.session_state.training_active and not st.session_state.training_paused:
+    if status['active'] and not status['paused']:
         st.sidebar.success("🟢 Training Active")
-    elif st.session_state.training_paused:
+    elif status['paused']:
         st.sidebar.warning("🟡 Training Paused")
     else:
         st.sidebar.info("🔵 Training Idle")
     
-    st.sidebar.markdown(f"**Current Epoch:** {st.session_state.current_epoch}")
-    st.sidebar.markdown(f"**Model:** {st.session_state.config['model_name']}")
-    st.sidebar.markdown(f"**Learning Rate:** {st.session_state.config['learning_rate']}")
+    st.sidebar.markdown(f"**Current Epoch:** {status['current_epoch']}")
+    st.sidebar.markdown(f"**Model:** {config['model_name']}")
+    st.sidebar.markdown(f"**Learning Rate:** {config['learning_rate']}")
     
     # Render selected page
     if page == "Training Dashboard":
@@ -94,12 +82,8 @@ def main():
         render_configuration()
     
     # Auto-refresh for real-time updates when training is active
-    if st.session_state.training_active and not st.session_state.training_paused:
-        time.sleep(1)
-        st.session_state.current_epoch += 1
-        if st.session_state.current_epoch >= st.session_state.config['max_epochs']:
-            st.session_state.training_active = False
-            st.success("Training completed!")
+    if status['active'] and not status['paused']:
+        time.sleep(2)
         st.rerun()
 
 if __name__ == "__main__":

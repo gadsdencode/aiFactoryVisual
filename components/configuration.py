@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+from backend.training_manager import get_training_manager
 
 def render_configuration():
     st.title("⚙️ Configuration")
@@ -10,50 +11,59 @@ def render_configuration():
     
     col1, col2 = st.columns(2)
     
+    # Get current configuration from training manager
+    training_manager = get_training_manager()
+    config = training_manager.get_config()
+    
     with col1:
         learning_rate = st.number_input(
             "Learning Rate",
             min_value=0.0001,
             max_value=0.1,
-            value=st.session_state.config['learning_rate'],
+            value=config['learning_rate'],
             step=0.0001,
             format="%.4f"
         )
         
         batch_size = st.selectbox(
             "Batch Size",
-            options=[8, 16, 32, 64, 128],
-            index=[8, 16, 32, 64, 128].index(st.session_state.config['batch_size'])
+            options=[1, 2, 4, 8, 16, 32],
+            index=[1, 2, 4, 8, 16, 32].index(config['batch_size'])
         )
         
         max_epochs = st.slider(
             "Maximum Epochs",
             min_value=10,
             max_value=200,
-            value=st.session_state.config['max_epochs'],
+            value=config['max_epochs'],
             step=10
         )
     
     with col2:
+        model_options = [
+            "mistralai/Mistral-7B-Instruct-v0.3",
+            "meta-llama/Llama-2-7b-hf", 
+            "meta-llama/Llama-2-13b-hf",
+            "codellama/CodeLlama-7b-Python-hf"
+        ]
         model_name = st.selectbox(
             "Model Architecture",
-            options=["llama-2-7b", "llama-2-13b", "mistral-7b", "codellama-7b", "vicuna-7b"],
-            index=["llama-2-7b", "llama-2-13b", "mistral-7b", "codellama-7b", "vicuna-7b"].index(
-                st.session_state.config['model_name']
-            )
+            options=model_options,
+            index=model_options.index(config['model_name']) if config['model_name'] in model_options else 0
         )
         
+        optimizer_options = ["paged_adamw_8bit", "adamw_torch", "adafactor"]
         optimizer = st.selectbox(
             "Optimizer",
-            options=["AdamW", "Adam", "SGD", "RMSprop"],
-            index=["AdamW", "Adam", "SGD", "RMSprop"].index(st.session_state.config['optimizer'])
+            options=optimizer_options,
+            index=optimizer_options.index(config['optimizer']) if config['optimizer'] in optimizer_options else 0
         )
         
         warmup_steps = st.number_input(
             "Warmup Steps",
             min_value=0,
             max_value=5000,
-            value=st.session_state.config['warmup_steps'],
+            value=config['warmup_steps'],
             step=100
         )
     
@@ -84,33 +94,38 @@ def render_configuration():
     
     with col1:
         if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-            # Update session state
-            st.session_state.config.update({
+            new_config = {
                 'learning_rate': learning_rate,
                 'batch_size': batch_size,
                 'max_epochs': max_epochs,
                 'model_name': model_name,
                 'optimizer': optimizer,
                 'warmup_steps': warmup_steps
-            })
-            st.success("Configuration saved successfully!")
+            }
+            if training_manager.update_config(new_config):
+                st.success("Configuration saved successfully!")
+            else:
+                st.error("Cannot update configuration during active training!")
     
     with col2:
         if st.button("🔄 Reset to Defaults", use_container_width=True):
-            st.session_state.config = {
-                'learning_rate': 0.001,
-                'batch_size': 32,
+            default_config = {
+                'learning_rate': 2e-4,
+                'batch_size': 4,
                 'max_epochs': 100,
-                'model_name': 'llama-2-7b',
-                'optimizer': 'AdamW',
+                'model_name': 'mistralai/Mistral-7B-Instruct-v0.3',
+                'optimizer': 'paged_adamw_8bit',
                 'warmup_steps': 1000
             }
-            st.info("Configuration reset to defaults!")
-            st.rerun()
+            if training_manager.update_config(default_config):
+                st.info("Configuration reset to defaults!")
+                st.rerun()
+            else:
+                st.error("Cannot reset configuration during active training!")
     
     with col3:
         if st.button("📤 Export Config", use_container_width=True):
-            config_json = json.dumps(st.session_state.config, indent=2)
+            config_json = json.dumps(config, indent=2)
             st.download_button(
                 label="Download JSON",
                 data=config_json,
@@ -123,14 +138,14 @@ def render_configuration():
     
     config_display = {
         "Training Parameters": {
-            "Learning Rate": st.session_state.config['learning_rate'],
-            "Batch Size": st.session_state.config['batch_size'],
-            "Max Epochs": st.session_state.config['max_epochs'],
-            "Warmup Steps": st.session_state.config['warmup_steps']
+            "Learning Rate": config['learning_rate'],
+            "Batch Size": config['batch_size'],
+            "Max Epochs": config['max_epochs'],
+            "Warmup Steps": config['warmup_steps']
         },
         "Model Configuration": {
-            "Model Name": st.session_state.config['model_name'],
-            "Optimizer": st.session_state.config['optimizer']
+            "Model Name": config['model_name'],
+            "Optimizer": config['optimizer']
         }
     }
     
@@ -142,19 +157,19 @@ def render_configuration():
     validation_results = []
     
     # Check learning rate
-    if 0.0001 <= st.session_state.config['learning_rate'] <= 0.01:
+    if 0.0001 <= config['learning_rate'] <= 0.01:
         validation_results.append(("✅", "Learning rate is within recommended range"))
     else:
         validation_results.append(("⚠️", "Learning rate may be too high or too low"))
     
     # Check batch size
-    if st.session_state.config['batch_size'] >= 16:
+    if config['batch_size'] >= 4:
         validation_results.append(("✅", "Batch size is adequate for stable training"))
     else:
         validation_results.append(("⚠️", "Small batch size may lead to unstable training"))
     
     # Check epoch count
-    if 50 <= st.session_state.config['max_epochs'] <= 150:
+    if 50 <= config['max_epochs'] <= 150:
         validation_results.append(("✅", "Epoch count is reasonable"))
     else:
         validation_results.append(("ℹ️", "Consider adjusting epoch count based on dataset size"))
