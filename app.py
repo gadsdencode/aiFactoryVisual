@@ -53,11 +53,18 @@ def main():
     st.sidebar.markdown("---")
     
     # Navigation
+    page_options = ["Training Dashboard", "Model Comparison", "Configuration"]
+    current_index = page_options.index(st.session_state.current_page) if st.session_state.current_page in page_options else 0
+    
     page = st.sidebar.selectbox(
         "Navigate to:",
-        ["Training Dashboard", "Model Comparison", "Configuration"],
-        key='current_page'
+        page_options,
+        index=current_index
     )
+    
+    # Update session state if page changed
+    if page != st.session_state.current_page:
+        st.session_state.current_page = page
     
     # Pipeline status in sidebar
     training_manager = get_training_manager()
