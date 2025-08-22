@@ -556,6 +556,49 @@ def apply_custom_styles(theme='light'):
             color: {text_color} !important;
         }}
         
+        /* Dropdown menu styling - target the actual dropdown that opens */
+        [data-baseweb="popover"] {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+        }}
+        
+        [data-baseweb="menu"] {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+        }}
+        
+        [data-baseweb="menu"] [role="option"] {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        [data-baseweb="menu"] [role="option"]:hover {{
+            background-color: {hover_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* More specific targeting for the dropdown */
+        div[data-baseweb="popover"] > div {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+        }}
+        
+        div[data-baseweb="popover"] ul {{
+            background-color: {card_bg} !important;
+        }}
+        
+        div[data-baseweb="popover"] li {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        div[data-baseweb="popover"] li:hover {{
+            background-color: {hover_bg} !important;
+            color: {text_color} !important;
+        }}
+        
         /* Text input placeholders */
         .stTextInput input::placeholder,
         .stNumberInput input::placeholder {{
