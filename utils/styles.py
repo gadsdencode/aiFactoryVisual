@@ -404,6 +404,185 @@ def apply_custom_styles(theme='light'):
             background-color: {card_bg} !important;
         }}
         
+        /* Configuration Page Specific Dark Mode Fixes */
+        
+        /* Help text and descriptions */
+        .stMarkdown small, .stHelp, [data-testid="stHelp"] {{
+            color: {'#94A3B8' if theme == 'dark' else '#64748B'} !important;
+        }}
+        
+        /* Form field containers */
+        .stForm {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px;
+        }}
+        
+        /* Radio button containers and labels */
+        .stRadio > div {{
+            background-color: transparent !important;
+        }}
+        
+        .stRadio > div > label > div {{
+            color: {text_color} !important;
+        }}
+        
+        .stRadio [data-baseweb="radio"] > div {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+        }}
+        
+        .stRadio [data-baseweb="radio"][aria-checked="true"] > div {{
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }}
+        
+        /* Spinner/loading indicators */
+        .stSpinner > div {{
+            border-color: {border_color} !important;
+            border-top-color: var(--primary-color) !important;
+        }}
+        
+        /* Selectbox dropdown options */
+        .stSelectbox [role="listbox"] {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px;
+            box-shadow: {card_shadow};
+        }}
+        
+        .stSelectbox [role="option"] {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stSelectbox [role="option"]:hover {{
+            background-color: {hover_bg} !important;
+        }}
+        
+        .stSelectbox [aria-selected="true"] {{
+            background-color: {'#475569' if theme == 'dark' else '#F1F5F9'} !important;
+        }}
+        
+        /* Text input placeholders */
+        .stTextInput input::placeholder,
+        .stNumberInput input::placeholder {{
+            color: {'#64748B' if theme == 'dark' else '#94A3B8'} !important;
+        }}
+        
+        /* Widget help tooltips */
+        [data-testid="stTooltipHoverTarget"] {{
+            color: {text_color} !important;
+        }}
+        
+        /* Validation and error messages in forms */
+        .stTextInput .stError,
+        .stNumberInput .stError,
+        .stSelectbox .stError {{
+            color: {error_color} !important;
+        }}
+        
+        /* Password input specific styling */
+        .stTextInput input[type="password"] {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Download button styling */
+        .stDownloadButton > button {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+            border: 1px solid {border_color} !important;
+        }}
+        
+        .stDownloadButton > button:hover {{
+            background-color: {hover_bg} !important;
+            border-color: var(--primary-color) !important;
+        }}
+        
+        /* Metric delta colors */
+        [data-testid="metric-container"] [data-testid="stMetricDelta"] {{
+            color: {text_color} !important;
+        }}
+        
+        /* Code blocks and JSON display */
+        .stCodeBlock {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stJson pre {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Widget containers */
+        .stWidget {{
+            background-color: transparent !important;
+        }}
+        
+        .stWidget > div {{
+            color: {text_color} !important;
+        }}
+        
+        /* Status indicators */
+        .element-container .stSuccess [data-testid="stMarkdownContainer"] p {{
+            color: {success_color} !important;
+        }}
+        
+        .element-container .stInfo [data-testid="stMarkdownContainer"] p {{
+            color: {info_color} !important;
+        }}
+        
+        .element-container .stWarning [data-testid="stMarkdownContainer"] p {{
+            color: {warning_color} !important;
+        }}
+        
+        .element-container .stError [data-testid="stMarkdownContainer"] p {{
+            color: {error_color} !important;
+        }}
+        
+        /* Container backgrounds */
+        .stContainer {{
+            background-color: transparent !important;
+        }}
+        
+        /* Column dividers */
+        .element-container {{
+            border-color: transparent !important;
+        }}
+        
+        /* Search results styling */
+        .stSelectbox [data-testid="stMarkdownContainer"] {{
+            color: {text_color} !important;
+        }}
+        
+        /* Form labels with better contrast */
+        .stSelectbox > label,
+        .stNumberInput > label,
+        .stTextInput > label,
+        .stSlider > label,
+        .stRadio > label {{
+            color: {text_color} !important;
+            font-weight: 500;
+        }}
+        
+        /* Disabled input styling */
+        .stTextInput input[disabled],
+        .stNumberInput input[disabled],
+        .stSelectbox select[disabled] {{
+            background-color: {'#374151' if theme == 'dark' else '#F3F4F6'} !important;
+            color: {'#6B7280' if theme == 'dark' else '#9CA3AF'} !important;
+            border-color: {border_color} !important;
+        }}
+        
+        /* Progress indicators */
+        .stProgress [data-testid="stProgress"] {{
+            background-color: {border_color} !important;
+        }}
+        
         /* Hide Streamlit branding */
         #MainMenu {{visibility: hidden;}}
         footer {{visibility: hidden;}}
