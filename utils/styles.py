@@ -11,6 +11,19 @@ def apply_custom_styles(theme='light'):
         border_color = '#334155'
         sidebar_bg = '#1E293B'
         input_bg = '#334155'
+        hover_bg = '#334155'
+        focus_color = 'rgba(99, 102, 241, 0.2)'
+        button_shadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
+        card_shadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
+        # Alert colors for dark theme
+        success_bg = '#0F2A1A'
+        success_color = '#4ADE80'
+        info_bg = '#1E293B'
+        info_color = '#93C5FD'
+        warning_bg = '#2D1B0F'
+        warning_color = '#FCD34D'
+        error_bg = '#2D1B1B'
+        error_color = '#F87171'
     else:  # light theme
         bg_color = '#F8FAFC'
         text_color = '#1E293B'
@@ -18,6 +31,19 @@ def apply_custom_styles(theme='light'):
         border_color = '#E2E8F0'
         sidebar_bg = '#FFFFFF'
         input_bg = '#FFFFFF'
+        hover_bg = '#F8FAFC'
+        focus_color = 'rgba(99, 102, 241, 0.1)'
+        button_shadow = '0 1px 2px rgba(0, 0, 0, 0.1)'
+        card_shadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
+        # Alert colors for light theme
+        success_bg = '#ECFDF5'
+        success_color = '#047857'
+        info_bg = '#EFF6FF'
+        info_color = '#1D4ED8'
+        warning_bg = '#FFFBEB'
+        warning_color = '#92400E'
+        error_bg = '#FEF2F2'
+        error_color = '#DC2626'
     
     st.markdown(f"""
     <style>
@@ -88,20 +114,21 @@ def apply_custom_styles(theme='light'):
             border: 1px solid {border_color} !important;
             border-radius: 8px;
             padding: var(--spacing);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: {card_shadow};
         }}
         
         [data-testid="metric-container"] > div {{
             color: {text_color} !important;
         }}
         
-        /* Button styling */
+        /* Enhanced button styling for dark mode */
         .stButton > button {{
             border-radius: 8px;
             font-family: 'Inter', sans-serif;
             font-weight: 500;
             border: none;
             transition: all 0.2s ease;
+            box-shadow: {button_shadow};
         }}
         
         .stButton > button[kind="primary"] {{
@@ -112,6 +139,7 @@ def apply_custom_styles(theme='light'):
         .stButton > button[kind="primary"]:hover {{
             background-color: #5855EB;
             transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
         }}
         
         .stButton > button:not([kind="primary"]) {{
@@ -121,16 +149,28 @@ def apply_custom_styles(theme='light'):
         }}
         
         .stButton > button:not([kind="primary"]):hover {{
-            background-color: {bg_color} !important;
+            background-color: {hover_bg} !important;
             border-color: var(--primary-color) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px {focus_color};
         }}
         
-        /* Selectbox and input styling */
+        /* Enhanced form controls for dark mode */
         .stSelectbox > div > div {{
             background-color: {card_bg} !important;
             border: 1px solid {border_color} !important;
             border-radius: 8px;
             color: {text_color} !important;
+            transition: all 0.2s ease;
+        }}
+        
+        .stSelectbox > div > div:hover {{
+            border-color: #64748B !important;
+        }}
+        
+        .stSelectbox > div > div:focus-within {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px {focus_color} !important;
         }}
         
         .stNumberInput > div > div > input,
@@ -140,6 +180,19 @@ def apply_custom_styles(theme='light'):
             border-radius: 8px;
             font-family: 'Inter', sans-serif;
             color: {text_color} !important;
+            transition: all 0.2s ease;
+        }}
+        
+        .stNumberInput > div > div > input:focus,
+        .stTextInput > div > div > input:focus {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px {focus_color} !important;
+            outline: none !important;
+        }}
+        
+        .stNumberInput > div > div > input:hover,
+        .stTextInput > div > div > input:hover {{
+            border-color: #64748B !important;
         }}
         
         /* Progress bar styling */
@@ -148,45 +201,58 @@ def apply_custom_styles(theme='light'):
             border-radius: 4px;
         }}
         
-        /* Alert styling */
+        /* Enhanced alert styling for dark mode */
         .stAlert {{
             border-radius: 8px;
             font-family: 'Inter', sans-serif;
+            border-width: 1px;
+            border-style: solid;
         }}
         
         .stSuccess {{
-            background-color: #ECFDF5;
-            border-color: var(--success-color);
-            color: #047857;
+            background-color: {success_bg} !important;
+            border-color: var(--success-color) !important;
+            color: {success_color} !important;
         }}
         
         .stInfo {{
-            background-color: #EFF6FF;
-            border-color: var(--primary-color);
-            color: #1D4ED8;
+            background-color: {info_bg} !important;
+            border-color: var(--primary-color) !important;
+            color: {info_color} !important;
         }}
         
         .stWarning {{
-            background-color: #FFFBEB;
-            border-color: var(--warning-color);
-            color: #92400E;
+            background-color: {warning_bg} !important;
+            border-color: var(--warning-color) !important;
+            color: {warning_color} !important;
         }}
         
         .stError {{
-            background-color: #FEF2F2;
-            border-color: var(--error-color);
-            color: #DC2626;
+            background-color: {error_bg} !important;
+            border-color: var(--error-color) !important;
+            color: {error_color} !important;
         }}
         
-        /* DataFrame styling */
+        /* Enhanced DataFrame styling for dark mode */
         .stDataFrame {{
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid {border_color} !important;
             background-color: {card_bg} !important;
+            box-shadow: {card_shadow};
         }}
         
-        /* Expander styling */
+        .stDataFrame [data-testid="stDataFrameResizable"] {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stDataFrame table {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Enhanced expander styling for dark mode */
         .streamlit-expanderHeader {{
             background-color: {card_bg} !important;
             border: 1px solid {border_color} !important;
@@ -194,6 +260,19 @@ def apply_custom_styles(theme='light'):
             font-family: 'Inter', sans-serif;
             font-weight: 500;
             color: {text_color} !important;
+            transition: all 0.2s ease;
+        }}
+        
+        .streamlit-expanderHeader:hover {{
+            background-color: {hover_bg} !important;
+            border-color: #64748B !important;
+        }}
+        
+        .streamlit-expanderContent {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-top: none !important;
+            border-radius: 0 0 8px 8px;
         }}
         
         /* Plotly chart container */
@@ -216,21 +295,81 @@ def apply_custom_styles(theme='light'):
             color: {text_color} !important;
         }}
         
-        /* Slider styling */
+        /* Enhanced slider styling for dark mode */
         .stSlider > div > div > div > div {{
             background-color: {card_bg} !important;
         }}
         
-        /* Tab styling */
+        .stSlider [data-baseweb="slider"] [data-testid="stTickBar"] {{
+            background-color: #475569 !important;
+        }}
+        
+        .stSlider [data-baseweb="slider"] [data-testid="stThumb"] {{
+            background-color: var(--primary-color) !important;
+            border: 2px solid {card_bg} !important;
+            box-shadow: {button_shadow} !important;
+        }}
+        
+        /* Enhanced tab styling for dark mode */
         .stTabs [data-baseweb="tab-list"] {{
             background-color: {card_bg} !important;
             border-bottom: 1px solid {border_color} !important;
+            border-radius: 8px 8px 0 0;
         }}
         
-        /* Multiselect styling */
+        .stTabs [data-baseweb="tab"] {{
+            color: #94A3B8 !important;
+            transition: all 0.2s ease;
+        }}
+        
+        .stTabs [data-baseweb="tab"]:hover {{
+            color: {text_color} !important;
+        }}
+        
+        .stTabs [aria-selected="true"] {{
+            color: var(--primary-color) !important;
+            border-bottom-color: var(--primary-color) !important;
+        }}
+        
+        /* Radio button and checkbox styling for dark mode */
+        .stRadio > div {{
+            color: {text_color} !important;
+        }}
+        
+        .stRadio > div > label {{
+            color: {text_color} !important;
+        }}
+        
+        .stCheckbox > label {{
+            color: {text_color} !important;
+        }}
+        
+        .stRadio [data-baseweb="radio"] {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+        }}
+        
+        .stCheckbox [data-testid="stCheckbox"] {{
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+        }}
+        
+        /* Enhanced multiselect styling for dark mode */
         .stMultiSelect > div > div {{
             background-color: {card_bg} !important;
             border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }}
+        
+        .stMultiSelect > div > div:focus-within {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px {focus_color} !important;
+        }}
+        
+        .stMultiSelect [data-baseweb="tag"] {{
+            background-color: #475569 !important;
             color: {text_color} !important;
         }}
         
