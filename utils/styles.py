@@ -252,7 +252,7 @@ def apply_custom_styles(theme='light'):
             color: {text_color} !important;
         }}
         
-        /* Enhanced expander styling for dark mode */
+        /* ULTIMATE FIX: All possible expander selectors for dark mode */
         .streamlit-expanderHeader {{
             background-color: {card_bg} !important;
             border: 1px solid {border_color} !important;
@@ -268,11 +268,51 @@ def apply_custom_styles(theme='light'):
             border-color: #64748B !important;
         }}
         
-        .streamlit-expanderContent {{
+        /* CRITICAL: Force expander content backgrounds */
+        .streamlit-expanderContent,
+        [data-testid="stExpander"] > div,
+        [data-testid="stExpander"] > div > div,
+        [data-testid="stExpander"] > div > div > div,
+        [data-testid="stExpander"] div[data-testid="stExpanderDetails"],
+        .css-1kyxreq,
+        .css-ocqkz7,
+        .css-1kyxreq > div,
+        .css-ocqkz7 > div,
+        .element-container > div > div[style*="padding"] {{
             background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-top: none !important;
-            border-radius: 0 0 8px 8px;
+            color: {text_color} !important;
+        }}
+        
+        /* Force ALL expander descendants to have proper colors */
+        [data-testid="stExpander"] *,
+        .streamlit-expanderContent *,
+        .css-1kyxreq *,
+        .css-ocqkz7 * {{
+            background-color: transparent !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Override any white/light backgrounds in expanders */
+        [data-testid="stExpander"] div[style*="background-color: rgb(255, 255, 255)"],
+        [data-testid="stExpander"] div[style*="background-color: white"],
+        [data-testid="stExpander"] div[style*="background-color: #fff"],
+        [data-testid="stExpander"] div[style*="background-color: #ffffff"] {{
+            background-color: {card_bg} !important;
+        }}
+        
+        /* Specific targeting for the problematic light containers */
+        .css-1kyxreq[style*="background"],
+        .css-ocqkz7[style*="background"],
+        .element-container[style*="background"] {{
+            background-color: {card_bg} !important;
+        }}
+        
+        /* Nuclear option: override any element with white background inside expanders */
+        [data-testid="stExpander"] div,
+        [data-testid="stExpander"] section,
+        [data-testid="stExpander"] [class*="css-"] {{
+            background-color: {card_bg} !important;
+            border-color: {border_color} !important;
         }}
         
         /* Plotly chart container */
