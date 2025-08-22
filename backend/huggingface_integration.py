@@ -112,7 +112,7 @@ class HuggingFaceModelManager:
         
         return 'Unknown size'
     
-    def search_models(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search_models(self, query: str, limit: int = 20, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search for models on HuggingFace Hub"""
         try:
             # Use HuggingFace API to search models
@@ -123,7 +123,11 @@ class HuggingFaceModelManager:
                 'limit': limit
             }
             
-            response = requests.get(f"{self.hf_api_base}/models", params=params, timeout=10)
+            headers = {}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+            
+            response = requests.get(f"{self.hf_api_base}/models", params=params, headers=headers, timeout=10)
             
             if response.status_code == 200:
                 models = response.json()
