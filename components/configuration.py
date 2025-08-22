@@ -46,17 +46,27 @@ def render_configuration():
             "meta-llama/Llama-2-13b-hf",
             "codellama/CodeLlama-7b-Python-hf"
         ]
+        try:
+            model_index = model_options.index(config['model_name'])
+        except ValueError:
+            model_index = 0
+        
         model_name = st.selectbox(
             "Model Architecture",
             options=model_options,
-            index=model_options.index(config['model_name']) if config['model_name'] in model_options else 0
+            index=model_index
         )
         
         optimizer_options = ["paged_adamw_8bit", "adamw_torch", "adafactor"]
+        try:
+            optimizer_index = optimizer_options.index(config['optimizer'])
+        except ValueError:
+            optimizer_index = 0
+        
         optimizer = st.selectbox(
             "Optimizer",
             options=optimizer_options,
-            index=optimizer_options.index(config['optimizer']) if config['optimizer'] in optimizer_options else 0
+            index=optimizer_index
         )
         
         warmup_steps = st.number_input(
@@ -73,19 +83,20 @@ def render_configuration():
     st.subheader("🔧 Advanced Settings")
     
     with st.expander("Data Configuration"):
-        data_path = st.text_input("Dataset Path", value="/data/training_data.json")
-        validation_split = st.slider("Validation Split", 0.1, 0.3, 0.2, 0.05)
-        max_sequence_length = st.number_input("Max Sequence Length", 512, 4096, 2048, 128)
+        yaml_config = training_manager.get_yaml_config()
+        st.text_input("Training Data Path", value=yaml_config.data.train_file, disabled=True)
+        st.text_input("Validation Data Path", value=yaml_config.data.validation_file, disabled=True) 
+        st.number_input("Max Sequence Length", value=yaml_config.model.max_length, disabled=True)
     
     with st.expander("Hardware Configuration"):
-        gpu_count = st.selectbox("GPU Count", [1, 2, 4, 8], index=0)
-        mixed_precision = st.checkbox("Mixed Precision (FP16)", value=True)
-        gradient_checkpointing = st.checkbox("Gradient Checkpointing", value=False)
+        st.selectbox("GPU Count", [1, 2, 4, 8], index=0, disabled=True)
+        st.checkbox("Quantization Enabled", value=yaml_config.quantization.enabled, disabled=True)
+        st.checkbox("Gradient Checkpointing", value=yaml_config.training.gradient_checkpointing, disabled=True)
     
     with st.expander("Logging Configuration"):
-        log_frequency = st.number_input("Log Every N Steps", 1, 100, 10, 1)
-        save_frequency = st.number_input("Save Every N Epochs", 1, 20, 5, 1)
-        wandb_logging = st.checkbox("Enable Weights & Biases", value=False)
+        st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, disabled=True)
+        st.number_input("Save Every N Steps", value=yaml_config.training.save_steps, disabled=True)
+        st.text_input("Report To", value=yaml_config.training.report_to, disabled=True)
     
     st.markdown("---")
     
@@ -110,9 +121,9 @@ def render_configuration():
     with col2:
         if st.button("🔄 Reset to Defaults", use_container_width=True):
             default_config = {
-                'learning_rate': 2e-4,
-                'batch_size': 4,
-                'max_epochs': 100,
+                'learning_rate': 0.0002,
+                'batch_size': 2,
+                'max_epochs': 1,
                 'model_name': 'mistralai/Mistral-7B-Instruct-v0.3',
                 'optimizer': 'paged_adamw_8bit',
                 'warmup_steps': 1000
@@ -141,11 +152,25 @@ def render_configuration():
             "Learning Rate": config['learning_rate'],
             "Batch Size": config['batch_size'],
             "Max Epochs": config['max_epochs'],
-            "Warmup Steps": config['warmup_steps']
+            "Gradient Accumulation Steps": yaml_config.training.gradient_accumulation_steps,
+            "Weight Decay": yaml_config.training.weight_decay,
+            "LR Scheduler": yaml_config.training.lr_scheduler_type
         },
         "Model Configuration": {
             "Model Name": config['model_name'],
-            "Optimizer": config['optimizer']
+            "Max Length": yaml_config.model.max_length,
+            "Optimizer": config['optimizer'],
+            "Attention Implementation": yaml_config.model.attn_implementation
+        },
+        "LoRA Configuration": {
+            "Rank (r)": yaml_config.lora.r,
+            "Alpha": yaml_config.lora.alpha,
+            "Dropout": yaml_config.lora.dropout
+        },
+        "Quantization": {
+            "Enabled": yaml_config.quantization.enabled,
+            "Type": yaml_config.quantization.quant_type,
+            "Double Quantization": yaml_config.quantization.use_double_quant
         }
     }
     
@@ -155,24 +180,31 @@ def render_configuration():
     st.subheader("✅ Configuration Validation")
     
     validation_results = []
+    yaml_config = training_manager.get_yaml_config()
     
     # Check learning rate
-    if 0.0001 <= config['learning_rate'] <= 0.01:
-        validation_results.append(("✅", "Learning rate is within recommended range"))
+    if 0.00001 <= config['learning_rate'] <= 0.001:
+        validation_results.append(("✅", "Learning rate is within recommended range for fine-tuning"))
     else:
-        validation_results.append(("⚠️", "Learning rate may be too high or too low"))
+        validation_results.append(("⚠️", "Learning rate may be too high or too low for fine-tuning"))
     
-    # Check batch size
-    if config['batch_size'] >= 4:
-        validation_results.append(("✅", "Batch size is adequate for stable training"))
+    # Check batch size for memory constraints
+    if 1 <= config['batch_size'] <= 4:
+        validation_results.append(("✅", "Batch size is appropriate for QLoRA training"))
     else:
-        validation_results.append(("⚠️", "Small batch size may lead to unstable training"))
+        validation_results.append(("⚠️", "Batch size may cause memory issues with QLoRA"))
     
-    # Check epoch count
-    if 50 <= config['max_epochs'] <= 150:
-        validation_results.append(("✅", "Epoch count is reasonable"))
+    # Check quantization
+    if yaml_config.quantization.enabled:
+        validation_results.append(("✅", "4-bit quantization enabled for memory efficiency"))
     else:
-        validation_results.append(("ℹ️", "Consider adjusting epoch count based on dataset size"))
+        validation_results.append(("⚠️", "Quantization disabled - may require more VRAM"))
+    
+    # Check LoRA configuration
+    if yaml_config.lora.r == 32 and yaml_config.lora.alpha == 32:
+        validation_results.append(("✅", "LoRA rank and alpha are optimally configured"))
+    else:
+        validation_results.append(("ℹ️", "Consider standard LoRA r=32, alpha=32 configuration"))
     
     for icon, message in validation_results:
         st.write(f"{icon} {message}")

@@ -11,38 +11,32 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
+from .config import load_config_from_yaml, ScriptConfig
+
 logger = logging.getLogger(__name__)
 
 class TrainingManager:
     """Manages training state and operations for the dashboard"""
     
-    def __init__(self):
+    def __init__(self, config_path: str = "config.yaml"):
         self.training_active = False
         self.training_paused = False
         self.current_epoch = 0
-        self.max_epochs = 100
         self.training_thread: Optional[threading.Thread] = None
         self.training_data = pd.DataFrame()
         self.lock = threading.Lock()
         self.start_time: Optional[datetime] = None
-        self.config = self._default_config()
+        self.config_path = config_path
+        self._load_config()
         
-    def _default_config(self) -> Dict[str, Any]:
-        """Default training configuration"""
-        return {
-            'learning_rate': 2e-4,
-            'batch_size': 4,
-            'max_epochs': 100,
-            'model_name': 'mistralai/Mistral-7B-Instruct-v0.3',
-            'optimizer': 'paged_adamw_8bit',
-            'warmup_steps': 1000,
-            'output_dir': './training_output',
-            'gradient_accumulation_steps': 1,
-            'weight_decay': 0.001,
-            'max_grad_norm': 0.3,
-            'warmup_ratio': 0.03,
-            'lr_scheduler_type': 'constant'
-        }
+    def _load_config(self):
+        """Load configuration from YAML file"""
+        self.yaml_config = load_config_from_yaml(self.config_path)
+        self.max_epochs = self.yaml_config.training.num_train_epochs
+    
+    def get_yaml_config(self) -> ScriptConfig:
+        """Get the full YAML configuration"""
+        return self.yaml_config
     
     def start_training(self) -> bool:
         """Start training process"""
@@ -118,15 +112,44 @@ class TrainingManager:
             if self.training_active:
                 return False  # Can't update config during training
             
-            self.config.update(new_config)
-            self.max_epochs = new_config.get('max_epochs', self.max_epochs)
+            # Update the YAML config object
+            if 'learning_rate' in new_config:
+                self.yaml_config.training.learning_rate = new_config['learning_rate']
+            if 'batch_size' in new_config:
+                self.yaml_config.training.per_device_train_batch_size = new_config['batch_size']
+                self.yaml_config.training.per_device_eval_batch_size = new_config['batch_size']
+            if 'max_epochs' in new_config:
+                self.yaml_config.training.num_train_epochs = new_config['max_epochs']
+                self.max_epochs = new_config['max_epochs']
+            if 'model_name' in new_config:
+                self.yaml_config.model.name = new_config['model_name']
+            if 'optimizer' in new_config:
+                self.yaml_config.training.optim = new_config['optimizer']
+            if 'warmup_steps' in new_config:
+                # Convert warmup steps to warmup ratio (approximate)
+                total_steps = self.max_epochs * 100  # Rough estimate
+                self.yaml_config.training.warmup_ratio = new_config['warmup_steps'] / total_steps
+            
             logger.info("Training configuration updated")
             return True
     
     def get_config(self) -> Dict[str, Any]:
-        """Get current configuration"""
+        """Get current configuration for the dashboard"""
         with self.lock:
-            return self.config.copy()
+            return {
+                'learning_rate': self.yaml_config.training.learning_rate,
+                'batch_size': self.yaml_config.training.per_device_train_batch_size,
+                'max_epochs': self.yaml_config.training.num_train_epochs,
+                'model_name': self.yaml_config.model.name,
+                'optimizer': self.yaml_config.training.optim,
+                'warmup_steps': int(self.yaml_config.training.warmup_ratio * 1000),  # Approximate
+                'output_dir': self.yaml_config.training.output_dir,
+                'gradient_accumulation_steps': self.yaml_config.training.gradient_accumulation_steps,
+                'weight_decay': self.yaml_config.training.weight_decay,
+                'max_grad_norm': self.yaml_config.training.max_grad_norm,
+                'warmup_ratio': self.yaml_config.training.warmup_ratio,
+                'lr_scheduler_type': self.yaml_config.training.lr_scheduler_type
+            }
     
     def _training_loop(self):
         """Simulated training loop - replace with actual training logic"""
@@ -169,7 +192,7 @@ class TrainingManager:
         val_accuracy = min(0.92, 1 - np.exp(-0.08 * epoch) * 0.85 + np.random.normal(0, 0.015))
         
         # Learning rate schedule (decay)
-        learning_rate = self.config['learning_rate'] * np.exp(-0.02 * epoch)
+        learning_rate = self.yaml_config.training.learning_rate * np.exp(-0.02 * epoch)
         
         # Add to training data
         new_row = pd.DataFrame({
