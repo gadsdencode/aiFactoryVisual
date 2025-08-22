@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 
 from .config import load_config_from_yaml, ScriptConfig
+from .huggingface_integration import get_hf_manager
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,22 @@ class TrainingManager:
         with self.lock:
             if self.training_active:
                 return False  # Can't update config during training
+            
+            # Validate model if it's being changed
+            if 'model_name' in new_config and new_config['model_name'] != self.yaml_config.model.name:
+                hf_manager = get_hf_manager()
+                is_valid, message, model_info = hf_manager.validate_model(new_config['model_name'])
+                if not is_valid:
+                    logger.error(f"Invalid model {new_config['model_name']}: {message}")
+                    return False
+                
+                # Check if model is suitable for fine-tuning
+                suitable, suit_message = hf_manager.is_model_suitable_for_fine_tuning(model_info)
+                if not suitable:
+                    logger.error(f"Model not suitable: {suit_message}")
+                    return False
+                    
+                logger.info(f"Model validated: {new_config['model_name']} - {suit_message}")
             
             # Update the YAML config object
             if 'learning_rate' in new_config:

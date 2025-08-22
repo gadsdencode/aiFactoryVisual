@@ -1,10 +1,12 @@
 import streamlit as st
 import json
 from backend.training_manager import get_training_manager
+from backend.huggingface_integration import get_hf_manager
 
 def render_configuration():
     st.title("⚙️ Configuration")
     st.markdown("Manage training parameters and model configurations")
+    st.info("🤗 **HuggingFace Integration Enabled**: You can now use any compatible LLM from the HuggingFace model hub!")
     
     # Training Configuration
     st.subheader("🎯 Training Parameters")
@@ -40,22 +42,105 @@ def render_configuration():
         )
     
     with col2:
-        model_options = [
-            "mistralai/Mistral-7B-Instruct-v0.3",
-            "meta-llama/Llama-2-7b-hf", 
-            "meta-llama/Llama-2-13b-hf",
-            "codellama/CodeLlama-7b-Python-hf"
-        ]
-        try:
-            model_index = model_options.index(config['model_name'])
-        except ValueError:
-            model_index = 0
+        # HuggingFace Model Selection
+        hf_manager = get_hf_manager()
         
-        model_name = st.selectbox(
-            "Model Architecture",
-            options=model_options,
-            index=model_index
+        st.subheader("🤗 HuggingFace Model Selection")
+        
+        # Model input method
+        input_method = st.radio(
+            "Choose model selection method:",
+            ["Popular Models", "Custom Model", "Search Models"],
+            index=0
         )
+        
+        if input_method == "Popular Models":
+            popular_models = hf_manager.get_popular_llm_models()
+            try:
+                model_index = popular_models.index(config['model_name'])
+            except ValueError:
+                model_index = 0
+            
+            model_name = st.selectbox(
+                "Select from Popular LLM Models",
+                options=popular_models,
+                index=model_index,
+                help="Curated list of popular and well-tested LLM models"
+            )
+        
+        elif input_method == "Custom Model":
+            model_name = st.text_input(
+                "Enter HuggingFace Model Name",
+                value=config['model_name'],
+                help="Enter the full model path (e.g., 'microsoft/DialoGPT-medium')",
+                placeholder="org_name/model_name"
+            )
+            
+            # Validate custom model
+            if model_name and model_name != config['model_name']:
+                with st.spinner("Validating model..."):
+                    is_valid, message, model_info = hf_manager.validate_model(model_name)
+                    
+                    if is_valid:
+                        st.success(f"✅ {message}")
+                        
+                        # Display model information
+                        if model_info:
+                            col_info1, col_info2 = st.columns(2)
+                            with col_info1:
+                                st.metric("Downloads", f"{model_info.get('downloads', 0):,}")
+                                st.metric("Likes", model_info.get('likes', 0))
+                            with col_info2:
+                                st.info(f"**Type:** {model_info.get('model_type', 'unknown')}")
+                                st.info(f"**Size:** {model_info.get('size_estimate', 'unknown')}")
+                            
+                            # Suitability check
+                            suitable, suit_message = hf_manager.is_model_suitable_for_fine_tuning(model_info)
+                            if suitable:
+                                if "Warning" in suit_message:
+                                    st.warning(suit_message)
+                                else:
+                                    st.success(suit_message)
+                            else:
+                                st.error(f"❌ {suit_message}")
+                    else:
+                        st.error(f"❌ {message}")
+        
+        else:  # Search Models
+            search_query = st.text_input(
+                "Search HuggingFace Models",
+                placeholder="Enter search terms (e.g., 'llama', 'mistral', 'code')"
+            )
+            
+            if search_query:
+                with st.spinner("Searching models..."):
+                    search_results = hf_manager.search_models(search_query, limit=15)
+                    
+                    if search_results:
+                        # Create options with additional info
+                        model_options = []
+                        model_details = {}
+                        
+                        for result in search_results:
+                            name = result['name']
+                            downloads = result.get('downloads', 0)
+                            likes = result.get('likes', 0)
+                            display_name = f"{name} ({downloads:,} downloads, {likes} likes)"
+                            model_options.append(display_name)
+                            model_details[display_name] = name
+                        
+                        selected_display = st.selectbox(
+                            "Select from Search Results",
+                            options=model_options,
+                            help="Models sorted by download count"
+                        )
+                        
+                        model_name = model_details.get(selected_display, config['model_name'])
+                    else:
+                        st.warning("No models found for your search query.")
+                        model_name = config['model_name']
+            else:
+                model_name = config['model_name']
         
         optimizer_options = ["paged_adamw_8bit", "adamw_torch", "adafactor"]
         try:
@@ -66,7 +151,8 @@ def render_configuration():
         optimizer = st.selectbox(
             "Optimizer",
             options=optimizer_options,
-            index=optimizer_index
+            index=optimizer_index,
+            help="paged_adamw_8bit is recommended for QLoRA training"
         )
         
         warmup_steps = st.number_input(
@@ -74,7 +160,8 @@ def render_configuration():
             min_value=0,
             max_value=5000,
             value=config['warmup_steps'],
-            step=100
+            step=100,
+            help="Number of steps for learning rate warmup"
         )
     
     st.markdown("---")
@@ -82,18 +169,32 @@ def render_configuration():
     # Advanced Configuration
     st.subheader("🔧 Advanced Settings")
     
-    with st.expander("Data Configuration"):
+    with st.expander("📊 Data & Model Configuration"):
         yaml_config = training_manager.get_yaml_config()
-        st.text_input("Training Data Path", value=yaml_config.data.train_file, disabled=True)
-        st.text_input("Validation Data Path", value=yaml_config.data.validation_file, disabled=True) 
-        st.number_input("Max Sequence Length", value=yaml_config.model.max_length, disabled=True)
+        
+        col_data1, col_data2 = st.columns(2)
+        with col_data1:
+            st.text_input("Training Data Path", value=yaml_config.data.train_file, disabled=True)
+            st.text_input("Validation Data Path", value=yaml_config.data.validation_file, disabled=True)
+        
+        with col_data2: 
+            st.number_input("Max Sequence Length", value=yaml_config.model.max_length, disabled=True)
+            st.text_input("Attention Implementation", value=yaml_config.model.attn_implementation, disabled=True)
     
-    with st.expander("Hardware Configuration"):
-        st.selectbox("GPU Count", [1, 2, 4, 8], index=0, disabled=True)
-        st.checkbox("Quantization Enabled", value=yaml_config.quantization.enabled, disabled=True)
-        st.checkbox("Gradient Checkpointing", value=yaml_config.training.gradient_checkpointing, disabled=True)
+    with st.expander("🖥️ Hardware & Memory Configuration"):
+        col_hw1, col_hw2 = st.columns(2)
+        
+        with col_hw1:
+            st.selectbox("GPU Count", [1, 2, 4, 8], index=0, disabled=True)
+            st.checkbox("4-bit Quantization", value=yaml_config.quantization.enabled, disabled=True, help="Enables QLoRA for memory efficiency")
+            st.text_input("Quantization Type", value=yaml_config.quantization.quant_type, disabled=True)
+        
+        with col_hw2:
+            st.checkbox("Gradient Checkpointing", value=yaml_config.training.gradient_checkpointing, disabled=True, help="Trades compute for memory")
+            st.checkbox("Double Quantization", value=yaml_config.quantization.use_double_quant, disabled=True)
+            st.number_input("LoRA Rank (r)", value=yaml_config.lora.r, disabled=True)
     
-    with st.expander("Logging Configuration"):
+    with st.expander("📝 Logging Configuration"):
         st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, disabled=True)
         st.number_input("Save Every N Steps", value=yaml_config.training.save_steps, disabled=True)
         st.text_input("Report To", value=yaml_config.training.report_to, disabled=True)
