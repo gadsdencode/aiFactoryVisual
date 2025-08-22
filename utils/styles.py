@@ -34,11 +34,23 @@ def apply_custom_styles(theme='light'):
             --spacing: 20px;
         }}
         
-        /* Main app styling */
+        /* Global page styling - target the root Streamlit container */
+        .stApp {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Main content area */
         .main {{
             font-family: 'Inter', sans-serif;
-            color: {text_color};
-            background-color: {bg_color};
+            color: {text_color} !important;
+            background-color: {bg_color} !important;
+        }}
+        
+        /* Main content block */
+        .block-container {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
         }}
         
         /* Headers */
@@ -53,10 +65,21 @@ def apply_custom_styles(theme='light'):
             font-family: 'JetBrains Mono', monospace;
         }}
         
-        /* Sidebar styling */
-        .css-1d391kg {{
+        /* Sidebar styling - comprehensive */
+        .css-1d391kg, .css-1cypcdb, .css-17eq0hr, section[data-testid="stSidebar"] {{
             background-color: {sidebar_bg} !important;
             border-right: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Sidebar content */
+        .css-1d391kg * {{
+            color: {text_color} !important;
+        }}
+        
+        /* All text elements */
+        p, span, div, label, .stMarkdown, .stText {{
+            color: {text_color} !important;
         }}
         
         /* Metric cards styling */
@@ -178,8 +201,18 @@ def apply_custom_styles(theme='light'):
             border-radius: 8px;
         }}
         
-        /* Streamlit specific overrides for dark theme */
-        .stMarkdown, .stText {{
+        /* Comprehensive text color overrides */
+        .stMarkdown, .stText, .stMarkdown p, .stMarkdown div, .stMarkdown span {{
+            color: {text_color} !important;
+        }}
+        
+        /* Column containers */
+        .css-ocqkz7, .css-1kyxreq, .element-container {{
+            background-color: transparent !important;
+        }}
+        
+        /* Widget labels */
+        .stSelectbox label, .stNumberInput label, .stTextInput label, .stSlider label {{
             color: {text_color} !important;
         }}
         
@@ -219,6 +252,17 @@ def apply_custom_styles(theme='light'):
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: var(--spacing);
             margin: var(--spacing) 0;
+        }}
+        
+        /* Additional comprehensive styling */
+        .css-10trblm, .css-16idsys, .css-1inwz65 {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Plotly charts background */
+        .js-plotly-plot .plot-container {{
+            background-color: {card_bg} !important;
         }}
         
         /* Hide Streamlit branding */

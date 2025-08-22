@@ -4,6 +4,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 from utils.data_generator import update_training_data
+from utils.chart_themes import apply_chart_theme, get_chart_theme
 
 def render_training_dashboard():
     st.title("🚀 Training Dashboard")
@@ -96,6 +97,7 @@ def render_training_dashboard():
         
         # Loss chart
         fig_loss = go.Figure()
+        theme = get_chart_theme()
         
         if not st.session_state.training_data.empty:
             fig_loss.add_trace(go.Scatter(
@@ -103,7 +105,7 @@ def render_training_dashboard():
                 y=st.session_state.training_data['train_loss'],
                 mode='lines',
                 name='Training Loss',
-                line=dict(color='#6366F1', width=3)
+                line=dict(color=theme['line_colors'][0], width=3)
             ))
             
             fig_loss.add_trace(go.Scatter(
@@ -111,7 +113,7 @@ def render_training_dashboard():
                 y=st.session_state.training_data['val_loss'],
                 mode='lines',
                 name='Validation Loss',
-                line=dict(color='#8B5CF6', width=3)
+                line=dict(color=theme['line_colors'][1], width=3)
             ))
         
         fig_loss.update_layout(
@@ -122,6 +124,8 @@ def render_training_dashboard():
             showlegend=True,
             hovermode='x unified'
         )
+        
+        fig_loss = apply_chart_theme(fig_loss)
         
         st.plotly_chart(fig_loss, use_container_width=True)
     
@@ -137,7 +141,7 @@ def render_training_dashboard():
                 y=st.session_state.training_data['train_accuracy'],
                 mode='lines',
                 name='Training Accuracy',
-                line=dict(color='#10B981', width=3)
+                line=dict(color=theme['line_colors'][2], width=3)
             ))
             
             fig_acc.add_trace(go.Scatter(
@@ -145,7 +149,7 @@ def render_training_dashboard():
                 y=st.session_state.training_data['val_accuracy'],
                 mode='lines',
                 name='Validation Accuracy',
-                line=dict(color='#F59E0B', width=3)
+                line=dict(color=theme['line_colors'][3], width=3)
             ))
         
         fig_acc.update_layout(
@@ -156,6 +160,8 @@ def render_training_dashboard():
             showlegend=True,
             hovermode='x unified'
         )
+        
+        fig_acc = apply_chart_theme(fig_acc)
         
         st.plotly_chart(fig_acc, use_container_width=True)
     
@@ -170,7 +176,7 @@ def render_training_dashboard():
             y=st.session_state.training_data['learning_rate'],
             mode='lines',
             name='Learning Rate',
-            line=dict(color='#EF4444', width=3),
+            line=dict(color=theme['line_colors'][4], width=3),
             fill='tozeroy',
             fillcolor='rgba(239, 68, 68, 0.1)'
         ))
@@ -182,6 +188,8 @@ def render_training_dashboard():
         height=300,
         showlegend=False
     )
+    
+    fig_lr = apply_chart_theme(fig_lr)
     
     st.plotly_chart(fig_lr, use_container_width=True)
     

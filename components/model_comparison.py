@@ -4,6 +4,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+from utils.chart_themes import apply_chart_theme, get_chart_theme
 
 def render_model_comparison():
     st.title("🔍 Model Comparison")
@@ -60,11 +61,12 @@ def render_model_comparison():
         
         # Bar chart comparing the selected metric
         fig_bar = go.Figure()
+        theme = get_chart_theme()
         
         fig_bar.add_trace(go.Bar(
             x=filtered_data['model_name'],
             y=filtered_data[metric_to_compare],
-            marker_color=['#6366F1', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'][:len(selected_models)],
+            marker_color=theme['line_colors'][:len(selected_models)],
             text=filtered_data[metric_to_compare].round(4),
             textposition='auto'
         ))
@@ -75,6 +77,8 @@ def render_model_comparison():
             yaxis_title=metric_to_compare.replace('_', ' ').title(),
             height=400
         )
+        
+        fig_bar = apply_chart_theme(fig_bar)
         
         st.plotly_chart(fig_bar, use_container_width=True)
     
@@ -103,6 +107,8 @@ def render_model_comparison():
             height=400,
             showlegend=False
         )
+        
+        fig_scatter = apply_chart_theme(fig_scatter)
         
         st.plotly_chart(fig_scatter, use_container_width=True)
     
@@ -148,6 +154,8 @@ def render_model_comparison():
         title="Normalized Performance Metrics Heatmap",
         height=400
     )
+    
+    fig_heatmap = apply_chart_theme(fig_heatmap)
     
     st.plotly_chart(fig_heatmap, use_container_width=True)
     
