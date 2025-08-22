@@ -15,7 +15,7 @@ class HuggingFaceModelManager:
         self.model_cache = {}
         self.hf_api_base = "https://huggingface.co/api"
         
-    def validate_model(self, model_name: str) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    def validate_model(self, model_name: str, token: Optional[str] = None) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """
         Validate if a HuggingFace model exists and get its information
         
@@ -30,7 +30,11 @@ class HuggingFaceModelManager:
                 return True, "Model validated (cached)", self.model_cache[model_name]
             
             # Fetch model information via API
-            response = requests.get(f"{self.hf_api_base}/models/{model_name}", timeout=10)
+            headers = {}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
+            
+            response = requests.get(f"{self.hf_api_base}/models/{model_name}", headers=headers, timeout=10)
             
             if response.status_code == 200:
                 info = response.json()
