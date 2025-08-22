@@ -31,6 +31,8 @@ if 'model_data' not in st.session_state:
     st.session_state.model_data = generate_model_comparison_data()
 if 'theme' not in st.session_state:
     st.session_state.theme = 'light'
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'Training Dashboard'
 
 def main():
     # Sidebar navigation
@@ -53,7 +55,8 @@ def main():
     # Navigation
     page = st.sidebar.selectbox(
         "Navigate to:",
-        ["Training Dashboard", "Model Comparison", "Configuration"]
+        ["Training Dashboard", "Model Comparison", "Configuration"],
+        key='current_page'
     )
     
     # Pipeline status in sidebar
