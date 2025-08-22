@@ -8,6 +8,43 @@ def render_configuration():
     st.markdown("Manage training parameters and model configurations")
     st.info("🤗 **HuggingFace Integration Enabled**: You can now use any compatible LLM from the HuggingFace model hub!")
     
+    # HuggingFace Authentication Section
+    with st.expander("🔐 HuggingFace Authentication (Optional)"):
+        st.markdown("""**Why provide a token?**
+        - Access private/gated models that require approval
+        - Higher API rate limits for model validation and search
+        - Access to your organization's private models""")
+        
+        col_token1, col_token2 = st.columns([3, 1])
+        
+        with col_token1:
+            hf_token = st.text_input(
+                "HuggingFace Access Token",
+                type="password",
+                help="Get your token from https://huggingface.co/settings/tokens",
+                placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            )
+        
+        with col_token2:
+            if st.button("💾 Save Token", use_container_width=True):
+                if hf_token:
+                    st.session_state['hf_token'] = hf_token
+                    st.success("Token saved!")
+                else:
+                    if 'hf_token' in st.session_state:
+                        del st.session_state['hf_token']
+                    st.info("Token cleared!")
+        
+        # Token status
+        if 'hf_token' in st.session_state and st.session_state['hf_token']:
+            st.success("✅ Authentication token is active")
+            if st.button("🗑️ Clear Token"):
+                del st.session_state['hf_token']
+                st.info("Token cleared!")
+                st.rerun()
+        else:
+            st.info("ℹ️ No authentication token set (using public access only)")
+    
     # Training Configuration
     st.subheader("🎯 Training Parameters")
     
@@ -79,7 +116,8 @@ def render_configuration():
             # Validate custom model
             if model_name and model_name != config['model_name']:
                 with st.spinner("Validating model..."):
-                    is_valid, message, model_info = hf_manager.validate_model(model_name)
+                    token = st.session_state.get('hf_token', None)
+                    is_valid, message, model_info = hf_manager.validate_model(model_name, token)
                     
                     if is_valid:
                         st.success(f"✅ {message}")
@@ -114,7 +152,8 @@ def render_configuration():
             
             if search_query:
                 with st.spinner("Searching models..."):
-                    search_results = hf_manager.search_models(search_query, limit=15)
+                    token = st.session_state.get('hf_token', None)
+                    search_results = hf_manager.search_models(search_query, limit=15, token=token)
                     
                     if search_results:
                         # Create options with additional info
@@ -214,7 +253,8 @@ def render_configuration():
                 'optimizer': optimizer,
                 'warmup_steps': warmup_steps
             }
-            if training_manager.update_config(new_config):
+            hf_token = st.session_state.get('hf_token', None)
+            if training_manager.update_config(new_config, hf_token):
                 st.success("Configuration saved successfully!")
             else:
                 st.error("Cannot update configuration during active training!")
@@ -229,7 +269,8 @@ def render_configuration():
                 'optimizer': 'paged_adamw_8bit',
                 'warmup_steps': 1000
             }
-            if training_manager.update_config(default_config):
+            hf_token = st.session_state.get('hf_token', None)
+            if training_manager.update_config(default_config, hf_token):
                 st.info("Configuration reset to defaults!")
                 st.rerun()
             else:

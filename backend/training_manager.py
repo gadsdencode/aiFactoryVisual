@@ -107,7 +107,7 @@ class TrainingManager:
                 'training_data': self.training_data.copy() if not self.training_data.empty else pd.DataFrame()
             }
     
-    def update_config(self, new_config: Dict[str, Any]) -> bool:
+    def update_config(self, new_config: Dict[str, Any], hf_token: Optional[str] = None) -> bool:
         """Update training configuration"""
         with self.lock:
             if self.training_active:
@@ -116,7 +116,7 @@ class TrainingManager:
             # Validate model if it's being changed
             if 'model_name' in new_config and new_config['model_name'] != self.yaml_config.model.name:
                 hf_manager = get_hf_manager()
-                is_valid, message, model_info = hf_manager.validate_model(new_config['model_name'])
+                is_valid, message, model_info = hf_manager.validate_model(new_config['model_name'], hf_token)
                 if not is_valid:
                     logger.error(f"Invalid model {new_config['model_name']}: {message}")
                     return False
