@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # Apply custom styles
-apply_custom_styles()
+apply_custom_styles(st.session_state.get('theme', 'light'))
 
 # Initialize session state
 if 'training_active' not in st.session_state:
@@ -45,6 +45,8 @@ if 'config' not in st.session_state:
         'optimizer': 'AdamW',
         'warmup_steps': 1000
     }
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
 
 def main():
     # Sidebar navigation
@@ -54,10 +56,12 @@ def main():
     # Theme toggle
     theme_col1, theme_col2 = st.sidebar.columns(2)
     with theme_col1:
-        if st.button("🌙 Dark"):
+        if st.button("🌙 Dark", disabled=st.session_state.theme == 'dark'):
+            st.session_state.theme = 'dark'
             st.rerun()
     with theme_col2:
-        if st.button("☀️ Light"):
+        if st.button("☀️ Light", disabled=st.session_state.theme == 'light'):
+            st.session_state.theme = 'light'
             st.rerun()
     
     st.sidebar.markdown("---")

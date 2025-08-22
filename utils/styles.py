@@ -1,6 +1,6 @@
 import streamlit as st
 
-def apply_custom_styles():
+def apply_custom_styles(theme='light'):
     """Apply custom CSS styles matching the specified design requirements."""
     
     st.markdown("""
@@ -15,15 +15,32 @@ def apply_custom_styles():
             --success-color: #10B981;
             --warning-color: #F59E0B;
             --error-color: #EF4444;
+            --spacing: 20px;
+        }
+        
+        /* Light theme variables */
+        .light-theme {
             --background-color: #F8FAFC;
             --text-color: #1E293B;
-            --spacing: 20px;
+            --card-background: #FFFFFF;
+            --border-color: #E2E8F0;
+            --sidebar-background: #FFFFFF;
+        }
+        
+        /* Dark theme variables */
+        .dark-theme {
+            --background-color: #0F172A;
+            --text-color: #F1F5F9;
+            --card-background: #1E293B;
+            --border-color: #334155;
+            --sidebar-background: #1E293B;
         }
         
         /* Main app styling */
         .main {
             font-family: 'Inter', sans-serif;
             color: var(--text-color);
+            background-color: var(--background-color);
         }
         
         /* Headers */
@@ -40,14 +57,14 @@ def apply_custom_styles():
         
         /* Sidebar styling */
         .css-1d391kg {
-            background-color: #FFFFFF;
-            border-right: 1px solid #E2E8F0;
+            background-color: var(--sidebar-background);
+            border-right: 1px solid var(--border-color);
         }
         
         /* Metric cards styling */
         [data-testid="metric-container"] {
-            background-color: #FFFFFF;
-            border: 1px solid #E2E8F0;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: var(--spacing);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -77,29 +94,30 @@ def apply_custom_styles():
         }
         
         .stButton > button:not([kind="primary"]) {
-            background-color: #FFFFFF;
+            background-color: var(--card-background);
             color: var(--text-color);
-            border: 1px solid #E2E8F0;
+            border: 1px solid var(--border-color);
         }
         
         .stButton > button:not([kind="primary"]):hover {
-            background-color: #F8FAFC;
+            background-color: var(--background-color);
             border-color: var(--primary-color);
         }
         
         /* Selectbox and input styling */
         .stSelectbox > div > div {
-            background-color: #FFFFFF;
-            border: 1px solid #E2E8F0;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
         }
         
         .stNumberInput > div > div > input,
         .stTextInput > div > div > input {
-            background-color: #FFFFFF;
-            border: 1px solid #E2E8F0;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             font-family: 'Inter', sans-serif;
+            color: var(--text-color);
         }
         
         /* Progress bar styling */
@@ -142,13 +160,13 @@ def apply_custom_styles():
         .stDataFrame {
             border-radius: 8px;
             overflow: hidden;
-            border: 1px solid #E2E8F0;
+            border: 1px solid var(--border-color);
         }
         
         /* Expander styling */
         .streamlit-expanderHeader {
-            background-color: #FFFFFF;
-            border: 1px solid #E2E8F0;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             font-family: 'Inter', sans-serif;
             font-weight: 500;
@@ -188,4 +206,12 @@ def apply_custom_styles():
             }
         }
     </style>
+    """, unsafe_allow_html=True)
+    
+    # Apply theme class to the document body
+    theme_class = f"{theme}-theme"
+    st.markdown(f"""
+    <script>
+        document.body.className = '{theme_class}';
+    </script>
     """, unsafe_allow_html=True)
