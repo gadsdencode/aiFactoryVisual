@@ -483,6 +483,37 @@ def apply_custom_styles(theme='light'):
             border-top-color: var(--primary-color) !important;
         }}
         
+        /* Enhanced Selectbox styling for dark mode */
+        .stSelectbox {{
+            color: {text_color} !important;
+        }}
+        
+        .stSelectbox > div > div {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stSelectbox [data-baseweb="select"] {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stSelectbox [data-baseweb="select"] > div {{
+            background-color: {input_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        .stSelectbox [data-baseweb="select"] span {{
+            color: {text_color} !important;
+        }}
+        
+        /* Selectbox dropdown arrow */
+        .stSelectbox svg {{
+            fill: {text_color} !important;
+        }}
+        
         /* Selectbox dropdown options */
         .stSelectbox [role="listbox"] {{
             background-color: {card_bg} !important;
@@ -502,6 +533,27 @@ def apply_custom_styles(theme='light'):
         
         .stSelectbox [aria-selected="true"] {{
             background-color: {'#475569' if theme == 'dark' else '#F1F5F9'} !important;
+            color: {text_color} !important;
+        }}
+        
+        /* Selectbox in sidebar specific styling */
+        .css-1d391kg .stSelectbox {{
+            color: {text_color} !important;
+        }}
+        
+        .css-1d391kg .stSelectbox > div > div {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+            color: {text_color} !important;
+        }}
+        
+        .css-1d391kg .stSelectbox [data-baseweb="select"] {{
+            background-color: {input_bg} !important;
+            color: {text_color} !important;
+        }}
+        
+        .css-1d391kg .stSelectbox [data-baseweb="select"] span {{
+            color: {text_color} !important;
         }}
         
         /* Text input placeholders */
