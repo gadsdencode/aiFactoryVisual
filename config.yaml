@@ -45,7 +45,7 @@ lora:
 # --- Training Configuration ---
 # Parameters for SFT training loop (via Hugging Face's TrainingArguments).
 training:
-  output_dir: "./nomadic-icdu-v2"
+  output_dir: "./output"
   seed: 42
   num_train_epochs: 1
   per_device_train_batch_size: 2

@@ -96,55 +96,17 @@ def load_and_prepare_dataset(config: DataConfig, tokenizer: PreTrainedTokenizer)
 
     # Filter out empty or invalid entries
     formatted_dataset = formatted_dataset.filter(lambda x: x["text"].strip() != "")
-    return formatted_dataset
 
-class VectorizedCompletionOnlyCollator:
-    """
-    A vectorized data collator that masks prompt tokens for completion-only fine-tuning.
-    """
-    def __init__(self, tokenizer: PreTrainedTokenizer, response_template: str = "Assistant: ", label_pad_token_id: int = -100):
-        self.tokenizer = tokenizer
-        self.label_pad_token_id = label_pad_token_id
-        self.response_template_ids = tokenizer.encode(response_template, add_special_tokens=False)
-        logger.info(f"Response template '{response_template}' tokenized to IDs: {self.response_template_ids}")
-
-    def __call__(self, features: List[Dict]) -> Dict[str, torch.Tensor]:
-        input_ids = [torch.tensor(f["input_ids"]) for f in features if "input_ids" in f]
-        attention_masks = [torch.tensor(f["attention_mask"]) for f in features if "attention_mask" in f]
-
-        if not input_ids or not attention_masks:
-            logger.warning("No valid input_ids or attention_mask found in batch.")
-            return {
-                "input_ids": torch.tensor([]),
-                "attention_mask": torch.tensor([]),
-                "labels": torch.tensor([])
-            }
-
-        padded_input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.tokenizer.pad_token_id)
-        padded_attention_mask = pad_sequence(attention_masks, batch_first=True, padding_value=0)
-        labels = padded_input_ids.clone()
-
-        batch_size, seq_len = padded_input_ids.shape
-        template_len = len(self.response_template_ids)
-        
-        unfolded_ids = padded_input_ids.unfold(dimension=1, size=template_len, step=1)
-        template_tensor = torch.tensor(self.response_template_ids, device=unfolded_ids.device)
-        
-        matches = (unfolded_ids == template_tensor).all(dim=2)
-        
-        mask_until_indices = torch.argmax(matches.int(), dim=1) + template_len
-        
-        no_match_mask = ~matches.any(dim=1)
-        mask_until_indices[no_match_mask] = seq_len
-        
-        arange_tensor = torch.arange(seq_len, device=padded_input_ids.device).expand(batch_size, -1)
-        label_mask = arange_tensor < mask_until_indices.unsqueeze(1)
-
-        labels[label_mask] = self.label_pad_token_id
-        labels[padded_input_ids == self.tokenizer.pad_token_id] = self.label_pad_token_id
-
-        return {
-            "input_ids": padded_input_ids,
-            "attention_mask": padded_attention_mask,
-            "labels": labels,
-        }
+    # Tokenize to produce input_ids/attention_mask for Trainer
+    logger.info("Tokenizing dataset...")
+    tokenized = formatted_dataset.map(
+        lambda batch: tokenizer(
+            batch["text"],
+            max_length=tokenizer.model_max_length,
+            truncation=True,
+            padding=False
+        ),
+        batched=True,
+        remove_columns=["text"]
+    )
+    return tokenized

@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+import torch
 
 from .config import load_config_from_yaml, ScriptConfig
 from .huggingface_integration import get_hf_manager
@@ -169,64 +170,52 @@ class TrainingManager:
             }
     
     def _training_loop(self):
-        """Simulated training loop - replace with actual training logic"""
+        """Run real training loop with progress updates."""
         logger.info("Starting training loop")
-        
-        while self.training_active and self.current_epoch < self.max_epochs:
-            if not self.training_paused:
-                # Simulate one epoch of training
-                self._simulate_epoch()
-                
-                with self.lock:
-                    self.current_epoch += 1
-                
-                time.sleep(2)  # Simulate epoch duration
-            else:
-                time.sleep(0.1)  # Check pause state frequently
-        
-        with self.lock:
-            if self.current_epoch >= self.max_epochs:
+        from .utils import Environment
+        from .trainer import run_training
+
+        env = Environment()
+        env.setup_backends()
+        self.current_epoch = 0
+
+        def on_progress(logs: Dict[str, Any]):
+            # logs may contain 'loss', 'eval_loss', 'learning_rate', 'epoch', 'step'
+            epoch = int(logs.get("epoch", self.current_epoch) or 0)
+            train_loss = logs.get("loss", logs.get("train_loss"))
+            eval_loss = logs.get("eval_loss")
+            lr = float(logs.get("learning_rate", self.yaml_config.training.learning_rate))
+
+            def safe_float(x):
+                try:
+                    return float(x)
+                except (TypeError, ValueError):
+                    return None
+
+            new_row = {
+                'epoch': epoch,
+                'train_loss': safe_float(train_loss),
+                'val_loss': safe_float(eval_loss),
+                'train_accuracy': None,
+                'val_accuracy': None,
+                'learning_rate': lr,
+                'timestamp': datetime.now()
+            }
+            with self.lock:
+                self.current_epoch = max(self.current_epoch, epoch)
+                self.training_data = (
+                    pd.concat([self.training_data, pd.DataFrame([new_row])], ignore_index=True)
+                    if not self.training_data.empty else pd.DataFrame([new_row])
+                )
+
+        try:
+            run_training(self.yaml_config, env, on_progress)
+        except Exception as e:
+            logger.error(f"Training error: {e}")
+        finally:
+            with self.lock:
                 self.training_active = False
-                logger.info("Training completed")
     
-    def _simulate_epoch(self):
-        """Simulate training metrics for one epoch"""
-        epoch = self.current_epoch + 1
-        
-        # Generate realistic training metrics
-        np.random.seed(42 + epoch)  # Consistent but varying seed
-        
-        # Base loss starts high and decreases
-        base_train_loss = 4.0 * np.exp(-0.05 * epoch) + 0.3
-        base_val_loss = 4.2 * np.exp(-0.04 * epoch) + 0.4
-        
-        # Add noise
-        train_loss = base_train_loss + np.random.normal(0, 0.05)
-        val_loss = base_val_loss + np.random.normal(0, 0.08)
-        
-        # Accuracy improves over time
-        train_accuracy = min(0.95, 1 - np.exp(-0.1 * epoch) * 0.8 + np.random.normal(0, 0.01))
-        val_accuracy = min(0.92, 1 - np.exp(-0.08 * epoch) * 0.85 + np.random.normal(0, 0.015))
-        
-        # Learning rate schedule (decay)
-        learning_rate = self.yaml_config.training.learning_rate * np.exp(-0.02 * epoch)
-        
-        # Add to training data
-        new_row = pd.DataFrame({
-            'epoch': [epoch],
-            'train_loss': [max(0.1, train_loss)],  # Minimum loss
-            'val_loss': [max(0.1, val_loss)],
-            'train_accuracy': [max(0, min(1, train_accuracy))],  # Clamp to [0,1]
-            'val_accuracy': [max(0, min(1, val_accuracy))],
-            'learning_rate': [learning_rate],
-            'timestamp': [datetime.now()]
-        })
-        
-        with self.lock:
-            if self.training_data.empty:
-                self.training_data = new_row
-            else:
-                self.training_data = pd.concat([self.training_data, new_row], ignore_index=True)
 
 # Global training manager instance
 training_manager = TrainingManager()
