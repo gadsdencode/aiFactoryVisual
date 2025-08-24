@@ -1,38 +1,35 @@
 # ==============================================================================
-# Enhanced QLoRA and DPO Fine-Tuning Configuration
-# - Optimized for RTX 4070 (8GB VRAM, 32GB RAM) to prevent crashes.
-# - Supports ICDU-formatted datasets for the '3-3-3 Strategy' pipeline.
+# Project and Model Configuration
 # ==============================================================================
 
-# --- Data Configuration ---
-# Point to ICDU-formatted JSONL files for training and validation.
-# Format: JSON Lines (.jsonl), with each line containing ICDU fields (e.g., application_prompt, ideal_response_final).
-data:
-  train_file: "./data/icdu_training_data_v2.jsonl"
-  validation_file: "./data/icdu_validation_data_v2.jsonl"
+project_name: "llm-finetuning-visualizer"
+base_model: "meta-llama/Llama-2-7b-chat-hf" # Base model from Hugging Face Hub
+new_model_name: "Llama-2-7b-chat-finetuned" # Name for your fine-tuned model
 
-# --- Model Configuration ---
-# Defines the base model and its core parameters.
-model:
-  name: "mistralai/Mistral-7B-Instruct-v0.3"
-  # Increased max_length to handle verbose ICDU system prompts and contexts.
-  max_length: 8192
-  attn_implementation: "flash_attention_2"
-  trust_remote_code: true
+# ==============================================================================
+# Dataset Configuration
+# ==============================================================================
 
-# --- Quantization Configuration ---
-# Settings for 4-bit QLoRA to minimize memory usage.
+dataset_name: "mlabonne/guanaco-llama2-1k" # Dataset from Hugging Face Hub
+dataset_split: "train" # e.g., 'train', 'train[:10%]'
+text_column: "text" # The column in your dataset that contains the text to be trained on
+
+# ==============================================================================
+# Quantization and LoRA Configuration
+# ==============================================================================
+
 quantization:
-  enabled: true
-  quant_type: "nf4"
-  use_double_quant: true
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16" # "float16", "bfloat16"
+  bnb_4bit_use_double_quant: false
 
-# --- LoRA Configuration ---
-# Parameters for Low-Rank Adaptation (LoRA) fine-tuning.
 lora:
-  r: 32
-  alpha: 32
-  dropout: 0.05
+  r: 64
+  alpha: 16
+  dropout: 0.1
+  bias: "none"
+  task_type: "CAUSAL_LM"
   target_modules:
     - "q_proj"
     - "k_proj"
@@ -41,56 +38,42 @@ lora:
     - "gate_proj"
     - "up_proj"
     - "down_proj"
+    - "lm_head"
 
-# --- Training Configuration ---
-# Parameters for SFT training loop (via Hugging Face's TrainingArguments).
+# ==============================================================================
+# Training Arguments Configuration
+# For detailed explanations, see Hugging Face's TrainingArguments documentation:
+# https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments
+# ==============================================================================
+
 training:
-  output_dir: "./output"
-  seed: 42
+  output_dir: "./results"
   num_train_epochs: 1
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 2
-  optim: "paged_adamw_8bit"
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 1
+  optim: "paged_adamw_32bit"
+  save_steps: 25
+  logging_steps: 25
   learning_rate: 0.0002
   weight_decay: 0.001
+  fp16: false
+  bf16: false
   max_grad_norm: 0.3
+  max_steps: -1
   warmup_ratio: 0.03
-  lr_scheduler_type: "cosine"
-  evaluation_strategy: "steps"
-  eval_steps: 50
-  save_strategy: "steps"
-  save_steps: 50
-  save_total_limit: 2
-  logging_steps: 10
   group_by_length: true
-  gradient_checkpointing: true
-  report_to: "none"
-  load_best_model_at_end: true
-  metric_for_best_model: "eval_loss"
-  greater_is_better: false
-  remove_unused_columns: false
-  dataloader_num_workers: 4
+  lr_scheduler_type: "constant"
+  report_to: "tensorboard" # or "wandb", "none"
+  # SFTTrainer specific arguments
+  max_seq_length: null # Set to a specific number, e.g., 512, if needed
+  packing: false
+  device_map: "auto" # {"": 0} for single GPU, "auto" for multi-GPU
 
-# --- DPO Configuration ---
-# Parameters for Direct Preference Optimization (DPO) training.
-dpo:
-  output_dir: "./nomadic-mind-v2/dpo_model"
-  learning_rate: 0.000005
-  beta: 0.1
-  max_steps: 100
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 2
-  optim: "paged_adamw_8bit"
-  lr_scheduler_type: "cosine"
-  eval_steps: 50
-  save_steps: 50
-  save_total_limit: 2
-  logging_steps: 10
-  gradient_checkpointing: true
-  warmup_ratio: 0.03
+# ==============================================================================
+# Hugging Face Hub Integration
+# ==============================================================================
 
-# --- Optional: Advanced Performance Tuning ---
-# torch_compile disabled to avoid potential instability.
-# torch_compile: false
+huggingface:
+  push_to_hub: false
+  hub_model_id: "your-hf-username/your-finetuned-model-name" # Replace with your details
+  hub_token: "" # Leave empty to use cached token or set explicitly. For security, prefer environment variables.

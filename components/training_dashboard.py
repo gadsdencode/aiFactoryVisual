@@ -216,3 +216,10 @@ def render_training_dashboard():
             display_data,
             use_container_width=True
         )
+
+
+def training_dashboard(log_placeholder=None, metrics_placeholder=None):
+    """
+    Backwards-compatible alias used by app.py; placeholders are currently unused.
+    """
+    return render_training_dashboard()

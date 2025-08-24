@@ -1,225 +1,303 @@
-"""
-Training Manager - Handles training state and operations for the Streamlit dashboard
-"""
-import logging
-import threading
-import time
-import json
-from typing import Dict, Any, Optional, List
-from pathlib import Path
-from datetime import datetime, timedelta
+import streamlit as st
+from threading import Thread
+import queue
 import pandas as pd
-import numpy as np
-import torch
+import yaml
+from types import SimpleNamespace
 
-from .config import load_config_from_yaml, ScriptConfig
-from .huggingface_integration import get_hf_manager
-
-logger = logging.getLogger(__name__)
+from backend.config import load_config
+from backend.data import load_and_prepare_dataset
+from backend.model_setup import setup_model_and_tokenizer
+from backend.trainer import run_training_in_thread
 
 class TrainingManager:
-    """Manages training state and operations for the dashboard"""
-    
-    def __init__(self, config_path: str = "config.yaml"):
-        self.training_active = False
-        self.training_paused = False
+    """
+    Manages the state and execution of the model training process.
+    """
+    def __init__(self):
+        self.training_thread = None
+        self.log_queue = queue.Queue()
+        self.metrics_queue = queue.Queue()
+        self.is_training = False
+        self.paused = False
         self.current_epoch = 0
-        self.training_thread: Optional[threading.Thread] = None
-        self.training_data = pd.DataFrame()
-        self.lock = threading.Lock()
-        self.start_time: Optional[datetime] = None
-        self.config_path = config_path
-        self._load_config()
-        
-    def _load_config(self):
-        """Load configuration from YAML file"""
-        self.yaml_config = load_config_from_yaml(self.config_path)
-        self.max_epochs = self.yaml_config.training.num_train_epochs
-    
-    def get_yaml_config(self) -> ScriptConfig:
-        """Get the full YAML configuration"""
-        return self.yaml_config
-    
-    def start_training(self) -> bool:
-        """Start training process"""
-        with self.lock:
-            if self.training_active:
-                return False
-            
-            self.training_active = True
-            self.training_paused = False
-            self.current_epoch = 0
-            self.start_time = datetime.now()
-            self.training_data = pd.DataFrame()
-            
-            # Start training thread
-            self.training_thread = threading.Thread(target=self._training_loop, daemon=True)
-            self.training_thread.start()
-            
-            logger.info("Training started")
-            return True
-    
-    def pause_training(self) -> bool:
-        """Pause/resume training"""
-        with self.lock:
-            if not self.training_active:
-                return False
-            
-            self.training_paused = not self.training_paused
-            logger.info(f"Training {'paused' if self.training_paused else 'resumed'}")
-            return True
-    
-    def stop_training(self) -> bool:
-        """Stop training process"""
-        with self.lock:
-            if not self.training_active:
-                return False
-            
-            self.training_active = False
-            self.training_paused = False
-            logger.info("Training stopped")
-            return True
-    
-    def reset_training(self) -> bool:
-        """Reset training state"""
-        with self.lock:
-            self.training_active = False
-            self.training_paused = False
-            self.current_epoch = 0
-            self.training_data = pd.DataFrame()
-            self.start_time = None
-            logger.info("Training reset")
-            return True
-    
-    def get_status(self) -> Dict[str, Any]:
-        """Get current training status"""
-        with self.lock:
-            elapsed_time = None
-            if self.start_time:
-                elapsed_time = (datetime.now() - self.start_time).total_seconds()
-            
-            return {
-                'active': self.training_active,
-                'paused': self.training_paused,
-                'current_epoch': self.current_epoch,
-                'max_epochs': self.max_epochs,
-                'progress': self.current_epoch / self.max_epochs if self.max_epochs > 0 else 0,
-                'elapsed_time': elapsed_time,
-                'training_data': self.training_data.copy() if not self.training_data.empty else pd.DataFrame()
-            }
-    
-    def update_config(self, new_config: Dict[str, Any], hf_token: Optional[str] = None) -> bool:
-        """Update training configuration"""
-        with self.lock:
-            if self.training_active:
-                return False  # Can't update config during training
-            
-            # Validate model if it's being changed
-            if 'model_name' in new_config and new_config['model_name'] != self.yaml_config.model.name:
-                hf_manager = get_hf_manager()
-                is_valid, message, model_info = hf_manager.validate_model(new_config['model_name'], hf_token)
-                if not is_valid:
-                    logger.error(f"Invalid model {new_config['model_name']}: {message}")
-                    return False
-                
-                # Check if model is suitable for fine-tuning
-                suitable, suit_message = hf_manager.is_model_suitable_for_fine_tuning(model_info)
-                if not suitable:
-                    logger.error(f"Model not suitable: {suit_message}")
-                    return False
-                    
-                logger.info(f"Model validated: {new_config['model_name']} - {suit_message}")
-            
-            # Update the YAML config object
-            if 'learning_rate' in new_config:
-                self.yaml_config.training.learning_rate = new_config['learning_rate']
-            if 'batch_size' in new_config:
-                self.yaml_config.training.per_device_train_batch_size = new_config['batch_size']
-                self.yaml_config.training.per_device_eval_batch_size = new_config['batch_size']
-            if 'max_epochs' in new_config:
-                self.yaml_config.training.num_train_epochs = new_config['max_epochs']
-                self.max_epochs = new_config['max_epochs']
-            if 'model_name' in new_config:
-                self.yaml_config.model.name = new_config['model_name']
-            if 'optimizer' in new_config:
-                self.yaml_config.training.optim = new_config['optimizer']
-            if 'warmup_steps' in new_config:
-                # Convert warmup steps to warmup ratio (approximate)
-                total_steps = self.max_epochs * 100  # Rough estimate
-                self.yaml_config.training.warmup_ratio = new_config['warmup_steps'] / total_steps
-            
-            logger.info("Training configuration updated")
-            return True
-    
-    def get_config(self) -> Dict[str, Any]:
-        """Get current configuration for the dashboard"""
-        with self.lock:
-            return {
-                'learning_rate': self.yaml_config.training.learning_rate,
-                'batch_size': self.yaml_config.training.per_device_train_batch_size,
-                'max_epochs': self.yaml_config.training.num_train_epochs,
-                'model_name': self.yaml_config.model.name,
-                'optimizer': self.yaml_config.training.optim,
-                'warmup_steps': int(self.yaml_config.training.warmup_ratio * 1000),  # Approximate
-                'output_dir': self.yaml_config.training.output_dir,
-                'gradient_accumulation_steps': self.yaml_config.training.gradient_accumulation_steps,
-                'weight_decay': self.yaml_config.training.weight_decay,
-                'max_grad_norm': self.yaml_config.training.max_grad_norm,
-                'warmup_ratio': self.yaml_config.training.warmup_ratio,
-                'lr_scheduler_type': self.yaml_config.training.lr_scheduler_type
-            }
-    
-    def _training_loop(self):
-        """Run real training loop with progress updates."""
-        logger.info("Starting training loop")
-        from .utils import Environment
-        from .trainer import run_training
+        self.progress = 0.0
+        self.max_epochs = 1
+        self.training_data = pd.DataFrame(
+            columns=[
+                'epoch', 'train_loss', 'val_loss', 'train_accuracy',
+                'val_accuracy', 'learning_rate', 'timestamp'
+            ]
+        )
+        self._cached_config = None
 
-        env = Environment()
-        env.setup_backends()
-        self.current_epoch = 0
-
-        def on_progress(logs: Dict[str, Any]):
-            # logs may contain 'loss', 'eval_loss', 'learning_rate', 'epoch', 'step'
-            epoch = int(logs.get("epoch", self.current_epoch) or 0)
-            train_loss = logs.get("loss", logs.get("train_loss"))
-            eval_loss = logs.get("eval_loss")
-            lr = float(logs.get("learning_rate", self.yaml_config.training.learning_rate))
-
-            def safe_float(x):
-                try:
-                    return float(x)
-                except (TypeError, ValueError):
-                    return None
-
-            new_row = {
-                'epoch': epoch,
-                'train_loss': safe_float(train_loss),
-                'val_loss': safe_float(eval_loss),
-                'train_accuracy': None,
-                'val_accuracy': None,
-                'learning_rate': lr,
-                'timestamp': datetime.now()
-            }
-            with self.lock:
-                self.current_epoch = max(self.current_epoch, epoch)
-                self.training_data = (
-                    pd.concat([self.training_data, pd.DataFrame([new_row])], ignore_index=True)
-                    if not self.training_data.empty else pd.DataFrame([new_row])
-                )
+    def start_training(self):
+        """
+        Initializes and starts the training process in a separate thread.
+        """
+        if self.is_training:
+            st.warning("Training is already in progress.")
+            return False
 
         try:
-            run_training(self.yaml_config, env, on_progress)
-        except Exception as e:
-            logger.error(f"Training error: {e}")
-        finally:
-            with self.lock:
-                self.training_active = False
-    
+            # Load configurations and data
+            config = load_config("config.yaml")
+            # sync basic progress constraints
+            try:
+                self.max_epochs = int(config.training.num_train_epochs)
+            except Exception:
+                self.max_epochs = 1
+            dataset = load_and_prepare_dataset(config)
+            if dataset is None:
+                st.error("Dataset loading failed. Aborting training.")
+                return False
+                
+            model, tokenizer = setup_model_and_tokenizer(config)
+            if model is None or tokenizer is None:
+                st.error("Model setup failed. Aborting training.")
+                return False
 
-# Global training manager instance
-training_manager = TrainingManager()
+            # Start training in a background thread
+            self.is_training = True
+            self.training_thread = Thread(
+                target=run_training_in_thread,
+                args=(config, model, tokenizer, dataset, self.log_queue, self.metrics_queue)
+            )
+            self.training_thread.daemon = True
+            self.training_thread.start()
+            
+            st.success("Training process started in the background.")
+            st.session_state.training_started = True
+            return True
+
+        except Exception as e:
+            st.error(f"Failed to start training: {e}")
+            self.is_training = False
+            st.session_state.training_started = False
+            return False
+
+    def stop_training(self):
+        """
+        Stops the training process.
+        Note: Forcefully stopping a thread is not recommended. This is a placeholder
+        for a more graceful shutdown mechanism if the training library supports it.
+        """
+        if not self.is_training:
+            st.warning("No training is currently in progress.")
+            return False
+
+        # A more graceful way would be to use a flag that the training loop checks.
+        # Since we are using the Hugging Face Trainer, this is not straightforward.
+        # For now, we'll just log the intention and let it finish.
+        self.log_queue.put("--- Stop request received. Training will complete the current step and then finish. ---")
+        self.is_training = False
+        st.session_state.training_started = False
+        st.info("Training will stop after the current epoch/step. The thread cannot be forcefully terminated.")
+        return True
+
+    def pause_training(self):
+        """
+        Toggle pause/resume state for UI purposes (no-op for HF Trainer).
+        """
+        if not self.is_training:
+            return False
+        self.paused = not self.paused
+        return True
+
+    def reset_training(self):
+        """
+        Reset UI-visible training progress and buffers.
+        """
+        self.current_epoch = 0
+        self.progress = 0.0
+        self.training_data = pd.DataFrame(columns=self.training_data.columns)
+        with self.log_queue.mutex:
+            self.log_queue.queue.clear()
+        with self.metrics_queue.mutex:
+            self.metrics_queue.queue.clear()
+
+
+    def get_logs(self):
+        """
+        Retrieves all available logs from the queue.
+        """
+        logs = []
+        while not self.log_queue.empty():
+            log_entry = self.log_queue.get()
+            if log_entry is None: # End signal
+                self.is_training = False
+                st.session_state.training_started = False
+                break
+            logs.append(log_entry)
+        return logs
+
+    def get_metrics(self):
+        """
+        Retrieves all available metrics from the queue and concatenates them.
+        """
+        all_metrics_df = pd.DataFrame()
+        while not self.metrics_queue.empty():
+            metric_df = self.metrics_queue.get()
+            all_metrics_df = pd.concat([all_metrics_df, metric_df])
+        
+        return all_metrics_df.reset_index(drop=True)
+
+    def get_status(self):
+        """
+        Returns a dict the dashboard expects.
+        """
+        # incorporate any newly arrived metrics into the cached training_data
+        new_metrics = self.get_metrics()
+        if not new_metrics.empty:
+            self.training_data = pd.concat([self.training_data, new_metrics]).reset_index(drop=True)
+            # try to update epoch/progress heuristically
+            if 'epoch' in new_metrics.columns and pd.notnull(new_metrics['epoch']).any():
+                try:
+                    self.current_epoch = int(new_metrics['epoch'].dropna().iloc[-1])
+                except Exception:
+                    pass
+            if self.max_epochs > 0:
+                self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
+
+        return {
+            'active': self.is_training,
+            'paused': self.paused,
+            'current_epoch': self.current_epoch,
+            'progress': float(self.progress),
+            'max_epochs': int(self.max_epochs),
+            'training_data': self.training_data.copy(),
+        }
+
+    def get_yaml_config(self):
+        """
+        Load config and expose a shape expected by the UI code.
+        Returns an object with namespaces: data, model, quantization, training, lora
+        """
+        app_cfg = load_config("config.yaml")
+        data_ns = SimpleNamespace(
+            train_file=f"hf:{app_cfg.dataset_name}:{app_cfg.dataset_split}",
+            validation_file=f"hf:{app_cfg.dataset_name}:validation"
+        )
+        model_ns = SimpleNamespace(
+            max_length=app_cfg.training.max_seq_length or 0,
+            attn_implementation="auto",
+        )
+        quant_ns = SimpleNamespace(
+            enabled=app_cfg.quantization.load_in_4bit,
+            quant_type=app_cfg.quantization.bnb_4bit_quant_type,
+            use_double_quant=app_cfg.quantization.bnb_4bit_use_double_quant,
+        )
+        training_ns = SimpleNamespace(
+            learning_rate=app_cfg.training.learning_rate,
+            per_device_train_batch_size=app_cfg.training.per_device_train_batch_size,
+            num_train_epochs=app_cfg.training.num_train_epochs,
+            max_seq_length=app_cfg.training.max_seq_length,
+            packing=app_cfg.training.packing,
+            device_map=app_cfg.training.device_map,
+            optim=app_cfg.training.optim,
+            gradient_accumulation_steps=app_cfg.training.gradient_accumulation_steps,
+            weight_decay=app_cfg.training.weight_decay,
+            lr_scheduler_type=app_cfg.training.lr_scheduler_type,
+            gradient_checkpointing=False,
+            logging_steps=app_cfg.training.logging_steps,
+            save_steps=app_cfg.training.save_steps,
+            report_to=app_cfg.training.report_to,
+        )
+        lora_ns = SimpleNamespace(
+            r=app_cfg.lora.r,
+            alpha=app_cfg.lora.alpha,
+            dropout=app_cfg.lora.dropout,
+        )
+        return SimpleNamespace(
+            data=data_ns,
+            model=model_ns,
+            quantization=quant_ns,
+            training=training_ns,
+            lora=lora_ns,
+        )
+
+    def _get_cached_yaml(self):
+        try:
+            with open("config.yaml", 'r') as f:
+                return yaml.safe_load(f)
+        except Exception:
+            return None
+
+    def get_config(self):
+        """
+        Return a simplified dict used by the configuration UI.
+        Maps fields from Pydantic AppConfig to the expected keys.
+        """
+        app_cfg = load_config("config.yaml")
+        # derive warmup_steps from warmup_ratio if possible (heuristic for UI input)
+        try:
+            warmup_steps = int(round(float(app_cfg.training.warmup_ratio) * 10000))
+        except Exception:
+            warmup_steps = 1000
+        try:
+            batch_size = int(app_cfg.training.per_device_train_batch_size)
+        except Exception:
+            batch_size = 2
+        try:
+            max_epochs = int(app_cfg.training.num_train_epochs)
+        except Exception:
+            max_epochs = 1
+        return {
+            'learning_rate': float(getattr(app_cfg.training, 'learning_rate', 2e-4)),
+            'batch_size': batch_size,
+            'max_epochs': max_epochs,
+            'model_name': str(getattr(app_cfg, 'base_model', 'mistralai/Mistral-7B-Instruct-v0.3')),
+            'optimizer': str(getattr(app_cfg.training, 'optim', 'paged_adamw_32bit')),
+            'warmup_steps': warmup_steps,
+        }
+
+    def update_config(self, new_config: dict, hf_token: str | None = None) -> bool:
+        """
+        Update config.yaml with values from the simplified UI config.
+        Returns False if training is active.
+        """
+        if self.is_training:
+            return False
+
+        yaml_cfg = self._get_cached_yaml() or {}
+        # ensure nested structure exists
+        yaml_cfg.setdefault('training', {})
+
+        # map fields
+        training = yaml_cfg['training']
+        training['learning_rate'] = float(new_config.get('learning_rate', training.get('learning_rate', 2e-4)))
+        training['per_device_train_batch_size'] = int(new_config.get('batch_size', training.get('per_device_train_batch_size', 4)))
+        training['num_train_epochs'] = int(new_config.get('max_epochs', training.get('num_train_epochs', 1)))
+        training['optim'] = str(new_config.get('optimizer', training.get('optim', 'paged_adamw_32bit')))
+
+        # convert warmup_steps back into a ratio heuristic (divide by 10000.0)
+        warmup_steps = int(new_config.get('warmup_steps', 1000))
+        training['warmup_ratio'] = float(max(0.0, min(1.0, warmup_steps / 10000.0)))
+
+        # base model is stored at top-level key 'base_model'
+        if 'model_name' in new_config and new_config['model_name']:
+            yaml_cfg['base_model'] = str(new_config['model_name'])
+
+        # optionally store HF token in session only
+        if hf_token:
+            st.session_state['hf_token'] = hf_token
+
+        # write back to file
+        try:
+            with open("config.yaml", 'w') as f:
+                yaml.safe_dump(yaml_cfg, f, sort_keys=False)
+            # refresh cached values used by UI
+            self._cached_config = None
+            return True
+        except Exception as e:
+            st.error(f"Failed to update configuration: {e}")
+            return False
+
 
 def get_training_manager() -> TrainingManager:
-    """Get the global training manager instance"""
-    return training_manager
+    """
+    Returns a singleton TrainingManager stored in Streamlit session state.
+    """
+    if 'training_manager' not in st.session_state or not isinstance(st.session_state.training_manager, TrainingManager):
+        st.session_state.training_manager = TrainingManager()
+    return st.session_state.training_manager

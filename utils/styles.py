@@ -783,3 +783,11 @@ def apply_custom_styles(theme='light'):
         }}
     </style>
     """, unsafe_allow_html=True)
+
+
+def load_css(theme: str | None = None):
+    """Backwards-compatible helper expected by app.py.
+    Applies the custom styles using the provided theme or session/default.
+    """
+    chosen_theme = theme or st.session_state.get('theme', 'light')
+    apply_custom_styles(chosen_theme)

@@ -1,40 +1,68 @@
-# ==============================================================================
-#  File: utils.py
-#  - Contains helper functions, including environment setup.
-# ==============================================================================
-import logging
-import importlib.util
-import platform
-import torch
+import os
+import streamlit as st
 
-logger = logging.getLogger(__name__)
+def get_available_models(results_dir: str = "./results"):
+    """
+    Scans the results directory for saved models.
 
+    Args:
+        results_dir (str): The directory where training results are saved.
 
-def is_bitsandbytes_available() -> bool:
-    """Check if the bitsandbytes library is installed."""
-    return importlib.util.find_spec("bitsandbytes") is not None
+    Returns:
+        list: A list of model directory names.
+    """
+    if not os.path.isdir(results_dir):
+        return []
+    
+    try:
+        # List all entries in the directory and filter for directories
+        models = [d for d in os.listdir(results_dir) if os.path.isdir(os.path.join(results_dir, d))]
+        return models
+    except Exception as e:
+        st.error(f"Error reading model directory '{results_dir}': {e}")
+        return []
 
+def load_model_for_inference(model_path: str):
+    """
+    Loads a fine-tuned model for inference.
+    (This is a placeholder for the actual implementation)
+    
+    Args:
+        model_path (str): The path to the saved model directory.
 
-class Environment:
-    """A container for the detected hardware and software environment."""
-    def __init__(self):
-        self.cuda_available = torch.cuda.is_available()
-        self.bnb_available = is_bitsandbytes_available()
-        self.bf16_supported = self.cuda_available and torch.cuda.is_bf16_supported()
-        # On Windows, prefer float16 for wider library compatibility (e.g., bitsandbytes)
-        if platform.system() == "Windows":
-            self.compute_dtype = torch.float16
-        else:
-            self.compute_dtype = torch.bfloat16 if self.bf16_supported else torch.float16
-        self.device_name = torch.cuda.get_device_name(0) if self.cuda_available else "CPU"
+    Returns:
+        A tuple of (model, tokenizer) or (None, None) if loading fails.
+    """
+    st.info(f"Loading model from: {model_path}")
+    # In a real application, you would use:
+    # from transformers import AutoModelForCausalLM, AutoTokenizer
+    #
+    # try:
+    #     model = AutoModelForCausalLM.from_pretrained(model_path)
+    #     tokenizer = AutoTokenizer.from_pretrained(model_path)
+    #     st.success("Model and tokenizer loaded for inference.")
+    #     return model, tokenizer
+    # except Exception as e:
+    #     st.error(f"Failed to load model: {e}")
+    #     return None, None
+    
+    # For now, we'll just simulate it
+    if os.path.exists(model_path):
+        return "mock_model", "mock_tokenizer"
+    return None, None
 
-    def setup_backends(self):
-        """Configure PyTorch backends for optimal performance."""
-        if self.cuda_available:
-            logger.info(f"CUDA is available. Using device: {self.device_name}")
-            # torch.cuda.get_device_capability returns a (major, minor) tuple
-            major, minor = torch.cuda.get_device_capability(0)
-            if (major, minor) >= (8, 0):
-                logger.info("Enabling TF32 for Ampere+ GPUs for improved performance.")
-                torch.backends.cuda.matmul.allow_tf32 = True
-                torch.set_float32_matmul_precision("high")
+# Example usage
+if __name__ == '__main__':
+    st.title("Backend Utilities Test")
+    
+    st.subheader("Available Models")
+    # Create a dummy directory for testing
+    if not os.path.exists("./results/test_model_1"):
+        os.makedirs("./results/test_model_1")
+    
+    models = get_available_models()
+    if models:
+        st.write(models)
+    else:
+        st.write("No models found in './results'.")
+

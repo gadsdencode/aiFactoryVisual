@@ -350,3 +350,10 @@ def render_configuration():
     
     for icon, message in validation_results:
         st.write(f"{icon} {message}")
+
+
+def configuration_sidebar():
+    """
+    Backwards-compatible alias used by app.py.
+    """
+    return render_configuration()

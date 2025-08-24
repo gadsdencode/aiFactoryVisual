@@ -1,83 +1,90 @@
-# ==============================================================================
-#  File: model_setup.py
-#  - Functions for loading the tokenizer and model with appropriate configs.
-# ==============================================================================
-import logging
-import importlib.util
 import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
-    PreTrainedModel,
-    PreTrainedTokenizer,
 )
+from peft import LoraConfig, get_peft_model
+from backend.config import AppConfig
+import streamlit as st
 
-from .config import ModelConfig, QuantizationConfig
-from .utils import Environment
+def setup_model_and_tokenizer(config: AppConfig):
+    """
+    Sets up the model and tokenizer for training, including quantization and LoRA.
 
-logger = logging.getLogger(__name__)
+    Args:
+        config (AppConfig): The application configuration.
 
+    Returns:
+        tuple: A tuple containing the model and tokenizer.
+    """
+    try:
+        # --- Quantization Configuration ---
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=config.quantization.load_in_4bit,
+            bnb_4bit_quant_type=config.quantization.bnb_4bit_quant_type,
+            bnb_4bit_compute_dtype=config.quantization.bnb_4bit_compute_dtype,
+            bnb_4bit_use_double_quant=config.quantization.bnb_4bit_use_double_quant,
+        )
 
-def load_tokenizer(config: ModelConfig) -> PreTrainedTokenizer:
-    """Loads and configures the tokenizer."""
-    logger.info(f"Loading tokenizer: {config.name}")
-    tokenizer = AutoTokenizer.from_pretrained(
-        config.name,
-        trust_remote_code=config.trust_remote_code,
-        use_fast=True,
-    )
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.model_max_length = config.max_length
-    tokenizer.padding_side = "right"
-    return tokenizer
+        # --- Load Base Model ---
+        st.info(f"Loading base model: {config.base_model}")
+        model = AutoModelForCausalLM.from_pretrained(
+            config.base_model,
+            quantization_config=bnb_config,
+            device_map=config.training.device_map
+        )
+        model.config.use_cache = False
+        model.config.pretraining_tp = 1
+        st.success("Base model loaded successfully.")
 
+        # --- Load Tokenizer ---
+        st.info(f"Loading tokenizer for: {config.base_model}")
+        tokenizer = AutoTokenizer.from_pretrained(config.base_model, trust_remote_code=True)
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.padding_side = "right"
+        st.success("Tokenizer loaded successfully.")
 
-def load_model(
-    model_config: ModelConfig,
-    quant_config: QuantizationConfig,
-    env: Environment
-) -> PreTrainedModel:
-    """Loads the model with quantization and other configurations."""
-    logger.info(f"Loading base model: {model_config.name}")
-    
-    bnb_config = None
-    if quant_config.enabled:
-        if not (env.cuda_available and env.bnb_available):
-            logger.warning(
-                "Quantization is enabled but CUDA or bitsandbytes is not available. "
-                "Disabling quantization."
-            )
-        else:
-            logger.info("4-bit quantization enabled for training. Configuring BitsAndBytes.")
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type=quant_config.quant_type,
-                bnb_4bit_compute_dtype=env.compute_dtype,
-                bnb_4bit_use_double_quant=quant_config.use_double_quant,
-            )
-
-    effective_attn_impl = model_config.attn_implementation
-    if effective_attn_impl in ("flash_attention_2", "flash_attention_3"):
-        has_flash_attn = importlib.util.find_spec("flash_attn") is not None
-        if not has_flash_attn:
-            logger.warning(
-                f"Requested attention '{effective_attn_impl}' but 'flash_attn' is not installed. Falling back to 'sdpa'."
-            )
-            effective_attn_impl = "sdpa"
-
-    model_kwargs = {
-        "device_map": "auto",
-        "trust_remote_code": model_config.trust_remote_code,
-        "use_safetensors": True,
-        "attn_implementation": effective_attn_impl,
-    }
-    if bnb_config:
-        model_kwargs["quantization_config"] = bnb_config
-    # Use environment-selected compute dtype (on Windows we prefer float16)
-    model_kwargs["torch_dtype"] = env.compute_dtype
-    # Avoid creating meta tensors on some setups by disabling low_cpu_mem_usage
-    model_kwargs["low_cpu_mem_usage"] = False
+        # --- LoRA Configuration ---
+        st.info("Setting up LoRA configuration...")
+        peft_config = LoraConfig(
+            r=config.lora.r,
+            lora_alpha=config.lora.alpha,
+            lora_dropout=config.lora.dropout,
+            bias=config.lora.bias,
+            task_type=config.lora.task_type,
+            target_modules=config.lora.target_modules,
+        )
         
-    model = AutoModelForCausalLM.from_pretrained(model_config.name, **model_kwargs)
-    return model
+        # --- Apply PEFT to the model ---
+        model = get_peft_model(model, peft_config)
+        st.success("LoRA configuration applied to the model.")
+        
+        model.print_trainable_parameters()
+
+        return model, tokenizer
+
+    except Exception as e:
+        st.error(f"An error occurred during model setup: {e}")
+        return None, None
+
+# Example usage:
+if __name__ == '__main__':
+    from backend.config import load_config
+    
+    st.title("Model Setup Test")
+    
+    try:
+        config = load_config()
+        st.write("Configuration loaded.")
+        
+        if st.button("Setup Model and Tokenizer"):
+            with st.spinner("Setting up model... This may take a while."):
+                model, tokenizer = setup_model_and_tokenizer(config)
+            
+            if model and tokenizer:
+                st.success("Model and tokenizer are ready!")
+                st.write("Model Architecture:")
+                st.text(str(model))
+    except Exception as e:
+        st.error(f"Failed to load configuration: {e}")

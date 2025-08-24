@@ -32,133 +32,146 @@ The following packages will be downloaded:
 
     package                    |            build
     ---------------------------|-----------------
-    _python_abi3_support-1.0   |       hd8ed1ab_2           8 KB  conda-forge
     accelerate-1.10.0          |     pyhe01879c_0         262 KB  conda-forge
     aiohappyeyeballs-2.6.1     |     pyhd8ed1ab_0          19 KB  conda-forge
     aiohttp-3.12.15            |  py310hdb0e946_0         808 KB  conda-forge
     aiosignal-1.4.0            |     pyhd8ed1ab_0          13 KB  conda-forge
-    annotated-types-0.7.0      |     pyhd8ed1ab_1          18 KB  conda-forge
+    altair-5.5.0               |     pyhd8ed1ab_1         482 KB  conda-forge
     async-timeout-5.0.1        |     pyhd8ed1ab_1          11 KB  conda-forge
-    cpython-3.10.18            |  py310hd8ed1ab_0          49 KB  conda-forge
+    attrs-25.3.0               |     pyh71513ae_0          56 KB  conda-forge
+    blinker-1.9.0              |     pyhff2d567_0          14 KB  conda-forge
+    cachetools-6.1.0           |     pyhd8ed1ab_0          16 KB  conda-forge
     datasets-4.0.0             |     pyhcf101f3_0         348 KB  conda-forge
     dill-0.3.8                 |     pyhd8ed1ab_0          86 KB  conda-forge
     frozenlist-1.7.0           |  py310had1666a_0          48 KB  conda-forge
-    fsspec-2025.3.0            |     pyhd8ed1ab_0         138 KB  conda-forge
-    hf-xet-1.1.8               |   py39h17685eb_0         2.4 MB  conda-forge
-    huggingface_hub-0.34.4     |     pyhd8ed1ab_0         326 KB  conda-forge
-    libsentencepiece-0.2.0     |      h98a84dd_11         1.3 MB  conda-forge
-    markdown-it-py-4.0.0       |     pyhd8ed1ab_0          63 KB  conda-forge
-    mdurl-0.1.2                |     pyhd8ed1ab_1          14 KB  conda-forge
+    gitdb-4.0.12               |     pyhd8ed1ab_0          52 KB  conda-forge
+    gitpython-3.1.45           |     pyhff2d567_0         154 KB  conda-forge
+    importlib-metadata-8.7.0   |     pyhe01879c_1          34 KB  conda-forge
+    jsonschema-4.25.1          |     pyhe01879c_0          80 KB  conda-forge
+    jsonschema-specifications-2025.4.1|     pyh29332c3_0          19 KB  conda-forge
+    lcms2-2.17                 |       hbcf6048_0         499 KB  conda-forge
+    lerc-4.0.0                 |       h6470a55_1         161 KB  conda-forge
+    libdeflate-1.24            |       h76ddb4d_0         153 KB  conda-forge
+    libjpeg-turbo-3.1.0        |       h2466b09_0         819 KB  conda-forge
+    libtiff-4.7.0              |       h550210a_6         961 KB  conda-forge
+    libwebp-base-1.6.0         |       h4d5522a_0         273 KB  conda-forge
+    libxcb-1.16                |       h013a479_1         966 KB  conda-forge
     multidict-6.6.3            |  py310hdb0e946_0          81 KB  conda-forge
     multiprocess-0.70.16       |  py310ha8f682b_1         264 KB  conda-forge
+    numpy-2.2.6                |  py310h4987827_0         6.3 MB  conda-forge
+    openjpeg-2.5.3             |       h24db6dd_1         239 KB  conda-forge
     peft-0.17.1                |     pyhcf101f3_0         245 KB  conda-forge
+    pillow-10.4.0              |  py310h3e38d90_1        40.3 MB  conda-forge
     propcache-0.3.1            |  py310h38315fa_0          49 KB  conda-forge
-    psutil-7.0.0               |  py310h29418f3_1         361 KB  conda-forge
-    pydantic-2.11.7            |     pyh3cfb1c2_0         300 KB  conda-forge
-    pydantic-core-2.33.2       |  py310hed05c55_0         1.8 MB  conda-forge
-    pygments-2.19.2            |     pyhd8ed1ab_0         868 KB  conda-forge
-    python-gil-3.10.18         |       hd8ed1ab_0          49 KB  conda-forge
+    protobuf-5.28.3            |  py310h9e98ed7_0         371 KB  conda-forge
+    pthread-stubs-0.4          |    hcd874cb_1001           6 KB  conda-forge
+    pydeck-0.9.1               |     pyhd8ed1ab_0         4.6 MB  conda-forge
     python-xxhash-3.5.0        |  py310hda3e71d_3          25 KB  conda-forge
-    pyyaml-6.0.2               |  py310h38315fa_2         154 KB  conda-forge
-    regex-2025.7.34            |  py310h29418f3_0         311 KB  conda-forge
-    rich-14.1.0                |     pyhe01879c_0         196 KB  conda-forge
-    safetensors-0.6.2          |  py310hf13f778_0         288 KB  conda-forge
-    sentencepiece-0.2.0        |      h789a12f_11          20 KB  conda-forge
-    sentencepiece-python-0.2.0 | py310h8d6b4ad_11         2.3 MB  conda-forge
-    sentencepiece-spm-0.2.0    |      h98a84dd_11         170 KB  conda-forge
-    shellingham-1.5.4          |     pyhd8ed1ab_1          14 KB  conda-forge
+    referencing-0.36.2         |     pyh29332c3_0          50 KB  conda-forge
+    rpds-py-0.27.0             |  py310h034784e_0         243 KB  conda-forge
+    smmap-5.0.2                |     pyhd8ed1ab_0          25 KB  conda-forge
+    streamlit-1.48.1           |     pyhd8ed1ab_0         7.9 MB  conda-forge
+    tenacity-9.1.2             |     pyhd8ed1ab_0          25 KB  conda-forge
     tokenizers-0.21.4          |  py310h1657867_0         1.8 MB  conda-forge
+    toml-0.10.2                |     pyhd8ed1ab_1          22 KB  conda-forge
+    tornado-6.5.2              |  py310h29418f3_0         648 KB  conda-forge
     transformers-4.55.4        |     pyhd8ed1ab_0         3.9 MB  conda-forge
-    typer-0.16.1               |     pyhc167863_0          76 KB  conda-forge
-    typer-slim-0.16.1          |     pyhe01879c_0          46 KB  conda-forge
-    typer-slim-standard-0.16.1 |       h810d63d_0           5 KB  conda-forge
-    typing-inspection-0.4.1    |     pyhd8ed1ab_0          18 KB  conda-forge
+    watchdog-6.0.0             |  py310h5588dad_0         138 KB  conda-forge
+    xorg-libxau-1.0.11         |       hcd874cb_0          50 KB  conda-forge
+    xorg-libxdmcp-1.1.3        |       hcd874cb_0          66 KB  conda-forge
     xxhash-0.8.3               |       hbba6f48_0         103 KB  conda-forge
     yarl-1.20.1                |  py310h38315fa_0         126 KB  conda-forge
+    zipp-3.23.0                |     pyhd8ed1ab_0          22 KB  conda-forge
     ------------------------------------------------------------
-                                           Total:        19.3 MB
+                                           Total:        73.7 MB
 
 The following NEW packages will be INSTALLED:
 
-  _python_abi3_supp~ conda-forge/noarch::_python_abi3_support-1.0-hd8ed1ab_2 
-  accelerate         conda-forge/noarch::accelerate-1.10.0-pyhe01879c_0 
   aiohappyeyeballs   conda-forge/noarch::aiohappyeyeballs-2.6.1-pyhd8ed1ab_0 
   aiohttp            conda-forge/win-64::aiohttp-3.12.15-py310hdb0e946_0 
   aiosignal          conda-forge/noarch::aiosignal-1.4.0-pyhd8ed1ab_0 
-  annotated-types    conda-forge/noarch::annotated-types-0.7.0-pyhd8ed1ab_1 
+  altair             conda-forge/noarch::altair-5.5.0-pyhd8ed1ab_1 
   async-timeout      conda-forge/noarch::async-timeout-5.0.1-pyhd8ed1ab_1 
-  cpython            conda-forge/noarch::cpython-3.10.18-py310hd8ed1ab_0 
+  attrs              conda-forge/noarch::attrs-25.3.0-pyh71513ae_0 
+  blinker            conda-forge/noarch::blinker-1.9.0-pyhff2d567_0 
+  cachetools         conda-forge/noarch::cachetools-6.1.0-pyhd8ed1ab_0 
   datasets           conda-forge/noarch::datasets-4.0.0-pyhcf101f3_0 
   dill               conda-forge/noarch::dill-0.3.8-pyhd8ed1ab_0 
   frozenlist         conda-forge/win-64::frozenlist-1.7.0-py310had1666a_0 
-  fsspec             conda-forge/noarch::fsspec-2025.3.0-pyhd8ed1ab_0 
-  hf-xet             conda-forge/win-64::hf-xet-1.1.8-py39h17685eb_0 
-  huggingface_hub    conda-forge/noarch::huggingface_hub-0.34.4-pyhd8ed1ab_0 
-  libsentencepiece   conda-forge/win-64::libsentencepiece-0.2.0-h98a84dd_11 
-  markdown-it-py     conda-forge/noarch::markdown-it-py-4.0.0-pyhd8ed1ab_0 
-  mdurl              conda-forge/noarch::mdurl-0.1.2-pyhd8ed1ab_1 
+  gitdb              conda-forge/noarch::gitdb-4.0.12-pyhd8ed1ab_0 
+  gitpython          conda-forge/noarch::gitpython-3.1.45-pyhff2d567_0 
+  importlib-metadata conda-forge/noarch::importlib-metadata-8.7.0-pyhe01879c_1 
+  jsonschema         conda-forge/noarch::jsonschema-4.25.1-pyhe01879c_0 
+  jsonschema-specif~ conda-forge/noarch::jsonschema-specifications-2025.4.1-pyh29332c3_0 
+  lcms2              conda-forge/win-64::lcms2-2.17-hbcf6048_0 
+  lerc               conda-forge/win-64::lerc-4.0.0-h6470a55_1 
+  libdeflate         conda-forge/win-64::libdeflate-1.24-h76ddb4d_0 
+  libjpeg-turbo      conda-forge/win-64::libjpeg-turbo-3.1.0-h2466b09_0 
+  libtiff            conda-forge/win-64::libtiff-4.7.0-h550210a_6 
+  libwebp-base       conda-forge/win-64::libwebp-base-1.6.0-h4d5522a_0 
+  libxcb             conda-forge/win-64::libxcb-1.16-h013a479_1 
   multidict          conda-forge/win-64::multidict-6.6.3-py310hdb0e946_0 
   multiprocess       conda-forge/win-64::multiprocess-0.70.16-py310ha8f682b_1 
-  peft               conda-forge/noarch::peft-0.17.1-pyhcf101f3_0 
+  openjpeg           conda-forge/win-64::openjpeg-2.5.3-h24db6dd_1 
+  pillow             conda-forge/win-64::pillow-10.4.0-py310h3e38d90_1 
   propcache          conda-forge/win-64::propcache-0.3.1-py310h38315fa_0 
-  psutil             conda-forge/win-64::psutil-7.0.0-py310h29418f3_1 
-  pydantic           conda-forge/noarch::pydantic-2.11.7-pyh3cfb1c2_0 
-  pydantic-core      conda-forge/win-64::pydantic-core-2.33.2-py310hed05c55_0 
-  pygments           conda-forge/noarch::pygments-2.19.2-pyhd8ed1ab_0 
-  python-gil         conda-forge/noarch::python-gil-3.10.18-hd8ed1ab_0 
+  protobuf           conda-forge/win-64::protobuf-5.28.3-py310h9e98ed7_0 
+  pthread-stubs      conda-forge/win-64::pthread-stubs-0.4-hcd874cb_1001 
+  pydeck             conda-forge/noarch::pydeck-0.9.1-pyhd8ed1ab_0 
   python-xxhash      conda-forge/win-64::python-xxhash-3.5.0-py310hda3e71d_3 
-  regex              conda-forge/win-64::regex-2025.7.34-py310h29418f3_0 
-  rich               conda-forge/noarch::rich-14.1.0-pyhe01879c_0 
-  safetensors        conda-forge/win-64::safetensors-0.6.2-py310hf13f778_0 
-  sentencepiece      conda-forge/win-64::sentencepiece-0.2.0-h789a12f_11 
-  sentencepiece-pyt~ conda-forge/win-64::sentencepiece-python-0.2.0-py310h8d6b4ad_11 
-  sentencepiece-spm  conda-forge/win-64::sentencepiece-spm-0.2.0-h98a84dd_11 
-  shellingham        conda-forge/noarch::shellingham-1.5.4-pyhd8ed1ab_1 
-  tokenizers         conda-forge/win-64::tokenizers-0.21.4-py310h1657867_0 
-  tqdm               conda-forge/noarch::tqdm-4.67.1-pyhd8ed1ab_1 
-  transformers       conda-forge/noarch::transformers-4.55.4-pyhd8ed1ab_0 
-  typer              conda-forge/noarch::typer-0.16.1-pyhc167863_0 
-  typer-slim         conda-forge/noarch::typer-slim-0.16.1-pyhe01879c_0 
-  typer-slim-standa~ conda-forge/noarch::typer-slim-standard-0.16.1-h810d63d_0 
-  typing-inspection  conda-forge/noarch::typing-inspection-0.4.1-pyhd8ed1ab_0 
+  referencing        conda-forge/noarch::referencing-0.36.2-pyh29332c3_0 
+  rpds-py            conda-forge/win-64::rpds-py-0.27.0-py310h034784e_0 
+  smmap              conda-forge/noarch::smmap-5.0.2-pyhd8ed1ab_0 
+  streamlit          conda-forge/noarch::streamlit-1.48.1-pyhd8ed1ab_0 
+  tenacity           conda-forge/noarch::tenacity-9.1.2-pyhd8ed1ab_0 
+  toml               conda-forge/noarch::toml-0.10.2-pyhd8ed1ab_1 
+  tornado            conda-forge/win-64::tornado-6.5.2-py310h29418f3_0 
+  watchdog           conda-forge/win-64::watchdog-6.0.0-py310h5588dad_0 
+  xorg-libxau        conda-forge/win-64::xorg-libxau-1.0.11-hcd874cb_0 
+  xorg-libxdmcp      conda-forge/win-64::xorg-libxdmcp-1.1.3-hcd874cb_0 
   xxhash             conda-forge/win-64::xxhash-0.8.3-hbba6f48_0 
   yarl               conda-forge/win-64::yarl-1.20.1-py310h38315fa_0 
+  zipp               conda-forge/noarch::zipp-3.23.0-pyhd8ed1ab_0 
 
 The following packages will be UPDATED:
 
-  pyyaml             pkgs/main::pyyaml-6.0.2-py310h827c3e9~ --> conda-forge::pyyaml-6.0.2-py310h38315fa_2 
+  accelerate                            0.33.0-pyhd8ed1ab_0 --> 1.10.0-pyhe01879c_0 
+  numpy                              1.26.4-py310hf667824_0 --> 2.2.6-py310h4987827_0 
+  peft                                  0.11.1-pyhd8ed1ab_0 --> 0.17.1-pyhcf101f3_0 
+  tokenizers         pkgs/main::tokenizers-0.15.1-py310h49~ --> conda-forge::tokenizers-0.21.4-py310h1657867_0 
+  transformers       pkgs/main/win-64::transformers-4.39.3~ --> conda-forge/noarch::transformers-4.55.4-pyhd8ed1ab_0 
 
 
 
-Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB    |            |   0% 
-hf-xet-1.1.8         | 2.4 MB    |            |   0% [A
+Downloading and Extracting Packages: ...working...pillow-10.4.0        | 40.3 MB   |            |   0% 
+streamlit-1.48.1     | 7.9 MB    |            |   0% [A
 
-sentencepiece-python | 2.3 MB    |            |   0% [A[A
+numpy-2.2.6          | 6.3 MB    |            |   0% [A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    |            |   0% [A[A[A
+pydeck-0.9.1         | 4.6 MB    |            |   0% [A[A[A
 
 
 
-pydantic-core-2.33.2 | 1.8 MB    |            |   0% [A[A[A[A
+transformers-4.55.4  | 3.9 MB    |            |   0% [A[A[A[A
 
 
 
 
-libsentencepiece-0.2 | 1.3 MB    |            |   0% [A[A[A[A[A
+tokenizers-0.21.4    | 1.8 MB    |            |   0% [A[A[A[A[A
 
 
 
 
 
-pygments-2.19.2      | 868 KB    |            |   0% [A[A[A[A[A[A
+libxcb-1.16          | 966 KB    |            |   0% [A[A[A[A[A[A
 
 
 
 
 
 
-aiohttp-3.12.15      | 808 KB    |            |   0% [A[A[A[A[A[A[A
+libtiff-4.7.0        | 961 KB    |            |   0% [A[A[A[A[A[A[A
 
 
 
@@ -166,7 +179,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-psutil-7.0.0         | 361 KB    |            |   0% [A[A[A[A[A[A[A[A
+libjpeg-turbo-3.1.0  | 819 KB    |            |   0% [A[A[A[A[A[A[A[A
 
 
 
@@ -175,7 +188,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-datasets-4.0.0       | 348 KB    |            |   0% [A[A[A[A[A[A[A[A[A
+aiohttp-3.12.15      | 808 KB    |            |   0% [A[A[A[A[A[A[A[A[A
 
 
 
@@ -185,7 +198,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-huggingface_hub-0.34 | 326 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A
+tornado-6.5.2        | 648 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -196,7 +209,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-regex-2025.7.34      | 311 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A
+lcms2-2.17           | 499 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -208,7 +221,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-pydantic-2.11.7      | 300 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A
+altair-5.5.0         | 482 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -221,7 +234,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-safetensors-0.6.2    | 288 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A
+protobuf-5.28.3      | 371 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -235,7 +248,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-multiprocess-0.70.16 | 264 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
+datasets-4.0.0       | 348 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -250,7 +263,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-accelerate-1.10.0    | 262 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+libwebp-base-1.6.0   | 273 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -266,7 +279,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-peft-0.17.1          | 245 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+multiprocess-0.70.16 | 264 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -283,7 +296,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-rich-14.1.0          | 196 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+accelerate-1.10.0    | 262 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -301,7 +314,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-sentencepiece-spm-0. | 170 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+peft-0.17.1          | 245 KB    |            |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -324,181 +337,189 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-pydantic-core-2.33.2 | 1.8 MB    |            |   1% [A[A[A[Atransformers-4.55.4  | 3.9 MB    |            |   0% 
-hf-xet-1.1.8         | 2.4 MB    |            |   1% [A
+transformers-4.55.4  | 3.9 MB    |            |   0% [A[A[A[A
 
-sentencepiece-python | 2.3 MB    |            |   1% [A[A
 
+pydeck-0.9.1         | 4.6 MB    |            |   0% [A[A[A
+streamlit-1.48.1     | 7.9 MB    |            |   0% [A
 
-tokenizers-0.21.4    | 1.8 MB    |            |   1% [A[A[Atransformers-4.55.4  | 3.9 MB    | 6          |   7% 
-hf-xet-1.1.8         | 2.4 MB    | #9         |  19% [A
+numpy-2.2.6          | 6.3 MB    |            |   0% [A[Apillow-10.4.0        | 40.3 MB   |            |   0% 
 
 
 
-pydantic-core-2.33.2 | 1.8 MB    | #3         |  14% [A[A[A[A
+transformers-4.55.4  | 3.9 MB    | 7          |   8% [A[A[A[A
 
-sentencepiece-python | 2.3 MB    | 4          |   4% [A[A
+numpy-2.2.6          | 6.3 MB    | 4          |   4% [A[A
+streamlit-1.48.1     | 7.9 MB    | 3          |   3% [A
 
 
+pydeck-0.9.1         | 4.6 MB    | 5          |   5% [A[A[A
 
-pydantic-core-2.33.2 | 1.8 MB    | ###        |  30% [A[A[A[A
-hf-xet-1.1.8         | 2.4 MB    | ####6      |  47% [A
+numpy-2.2.6          | 6.3 MB    | 8          |   9% [A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | 5          |   6% [A[A[Atransformers-4.55.4  | 3.9 MB    | #3         |  14% 
 
-sentencepiece-python | 2.3 MB    | 9          |  10% [A[Atransformers-4.55.4  | 3.9 MB    | #9         |  20% 
+transformers-4.55.4  | 3.9 MB    | ##4        |  25% [A[A[A[Apillow-10.4.0        | 40.3 MB   |            |   0% 
 
 
+pydeck-0.9.1         | 4.6 MB    | #6         |  16% [A[A[A
+streamlit-1.48.1     | 7.9 MB    | #1         |  12% [A
 
-pydantic-core-2.33.2 | 1.8 MB    | ####4      |  45% [A[A[A[A
-hf-xet-1.1.8         | 2.4 MB    | ######9    |  69% [A
+numpy-2.2.6          | 6.3 MB    | ##         |  20% [A[Apillow-10.4.0        | 40.3 MB   | 1          |   1% 
 
-sentencepiece-python | 2.3 MB    | ##1        |  21% [A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | #2         |  13% [A[A[A
+transformers-4.55.4  | 3.9 MB    | ###9       |  39% [A[A[A[A
 
 
+pydeck-0.9.1         | 4.6 MB    | ##4        |  25% [A[A[A
 
-pydantic-core-2.33.2 | 1.8 MB    | #######5   |  75% [A[A[A[A
-hf-xet-1.1.8         | 2.4 MB    | #########  |  91% [Atransformers-4.55.4  | 3.9 MB    | ###2       |  33% 
+numpy-2.2.6          | 6.3 MB    | ###        |  30% [A[A
+streamlit-1.48.1     | 7.9 MB    | #7         |  18% [A
 
-sentencepiece-python | 2.3 MB    | ###5       |  36% [A[A
-hf-xet-1.1.8         | 2.4 MB    | ########## | 100% [A
 
 
-tokenizers-0.21.4    | 1.8 MB    | ##6        |  26% [A[A[A
+transformers-4.55.4  | 3.9 MB    | ######5    |  65% [A[A[A[A
 
 
+pydeck-0.9.1         | 4.6 MB    | ###1       |  31% [A[A[A
 
-pydantic-core-2.33.2 | 1.8 MB    | #########1 |  92% [A[A[A[Atransformers-4.55.4  | 3.9 MB    | ####3      |  44% 
-hf-xet-1.1.8         | 2.4 MB    | ########## | 100% [A
+numpy-2.2.6          | 6.3 MB    | ####5      |  45% [A[Apillow-10.4.0        | 40.3 MB   | 1          |   1% 
+streamlit-1.48.1     | 7.9 MB    | ##5        |  25% [A
 
 
+pydeck-0.9.1         | 4.6 MB    | ###8       |  38% [A[A[A
 
-pydantic-core-2.33.2 | 1.8 MB    | ########## | 100% [A[A[A[A
 
 
+transformers-4.55.4  | 3.9 MB    | ########   |  80% [A[A[A[A
 
-pydantic-core-2.33.2 | 1.8 MB    | ########## | 100% [A[A[A[A
 
-sentencepiece-python | 2.3 MB    | #####5     |  56% [A[A
 
+transformers-4.55.4  | 3.9 MB    | ########## | 100% [A[A[A[A
+streamlit-1.48.1     | 7.9 MB    | ###7       |  38% [A
 
 
+pydeck-0.9.1         | 4.6 MB    | ####9      |  50% [A[A[A
 
-libsentencepiece-0.2 | 1.3 MB    | 1          |   1% [A[A[A[A[Atransformers-4.55.4  | 3.9 MB    | ######3    |  64% 
+numpy-2.2.6          | 6.3 MB    | ######4    |  64% [A[Apillow-10.4.0        | 40.3 MB   | 1          |   2% 
 
+numpy-2.2.6          | 6.3 MB    | #######8   |  79% [A[A
 
 
+pydeck-0.9.1         | 4.6 MB    | #####7     |  57% [A[A[Apillow-10.4.0        | 40.3 MB   | 2          |   2% 
+streamlit-1.48.1     | 7.9 MB    | ####4      |  45% [A
 
 
-pygments-2.19.2      | 868 KB    | 1          |   2% [A[A[A[A[A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | #####2     |  53% [A[A[A
+tokenizers-0.21.4    | 1.8 MB    |            |   1% [A[A[A[A[A
 
+numpy-2.2.6          | 6.3 MB    | #########6 |  96% [A[A
 
 
 
-libsentencepiece-0.2 | 1.3 MB    | ###8       |  39% [A[A[A[A[A
 
+tokenizers-0.21.4    | 1.8 MB    | ####2      |  42% [A[A[A[A[A
 
 
+pydeck-0.9.1         | 4.6 MB    | ######5    |  66% [A[A[Apillow-10.4.0        | 40.3 MB   | 2          |   3% 
+streamlit-1.48.1     | 7.9 MB    | #####1     |  51% [A
 
+numpy-2.2.6          | 6.3 MB    | ########## | 100% [A[A
 
-pygments-2.19.2      | 868 KB    | ##7        |  28% [A[A[A[A[A[Atransformers-4.55.4  | 3.9 MB    | #######5   |  76% 
 
-sentencepiece-python | 2.3 MB    | ######7    |  68% [A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | #######3   |  74% [A[A[A
+tokenizers-0.21.4    | 1.8 MB    | ########## | 100% [A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 3          |   3% 
 
 
+pydeck-0.9.1         | 4.6 MB    | #######8   |  79% [A[A[A
+streamlit-1.48.1     | 7.9 MB    | ######5    |  65% [A
 
 
-libsentencepiece-0.2 | 1.3 MB    | ########4  |  85% [A[A[A[A[Atransformers-4.55.4  | 3.9 MB    | #########4 |  95% 
 
-sentencepiece-python | 2.3 MB    | ########7  |  88% [A[A
 
 
+libxcb-1.16          | 966 KB    | 1          |   2% [A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 3          |   4% 
 
 
+pydeck-0.9.1         | 4.6 MB    | ########8  |  89% [A[A[A
 
-pygments-2.19.2      | 868 KB    | #########5 |  96% [A[A[A[A[A[A
 
 
 
+tokenizers-0.21.4    | 1.8 MB    | ########## | 100% [A[A[A[A[A
 
 
-pygments-2.19.2      | 868 KB    | ########## | 100% [A[A[A[A[A[A
 
 
+tokenizers-0.21.4    | 1.8 MB    | ########## | 100% [A[A[A[A[A
+streamlit-1.48.1     | 7.9 MB    | #######7   |  78% [A
 
 
-libsentencepiece-0.2 | 1.3 MB    | ########## | 100% [A[A[A[A[Atransformers-4.55.4  | 3.9 MB    | ########## | 100% 
 
-sentencepiece-python | 2.3 MB    | ########## | 100% [A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | #########3 |  93% [A[A[A
+libxcb-1.16          | 966 KB    | ##3        |  23% [A[A[A[A[A[A
 
 
 
 
 
 
-aiohttp-3.12.15      | 808 KB    | 1          |   2% [A[A[A[A[A[A[A
+libtiff-4.7.0        | 961 KB    | 1          |   2% [A[A[A[A[A[A[A
 
 
 
 
 
+libxcb-1.16          | 966 KB    | ########## | 100% [A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 4          |   4% 
+streamlit-1.48.1     | 7.9 MB    | #########4 |  94% [A
 
 
+pydeck-0.9.1         | 4.6 MB    | #########8 |  98% [A[A[A
 
-datasets-4.0.0       | 348 KB    | 4          |   5% [A[A[A[A[A[A[A[A[A
 
 
 
 
 
+libtiff-4.7.0        | 961 KB    | ########## | 100% [A[A[A[A[A[A[A
 
 
-psutil-7.0.0         | 361 KB    | 4          |   4% [A[A[A[A[A[A[A[A
+pydeck-0.9.1         | 4.6 MB    | ########## | 100% [A[A[A
+streamlit-1.48.1     | 7.9 MB    | ########## | 100% [A
 
 
-tokenizers-0.21.4    | 1.8 MB    | ########## | 100% [A[A[A
 
 
 
 
-libsentencepiece-0.2 | 1.3 MB    | ########## | 100% [A[A[A[A[A
 
 
+aiohttp-3.12.15      | 808 KB    | 1          |   2% [A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 4          |   5% 
 
 
 
 
 
 
-datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A
 
 
 
+tornado-6.5.2        | 648 KB    | 2          |   2% [A[A[A[A[A[A[A[A[A[A
 
 
 
 
-psutil-7.0.0         | 361 KB    | ########## | 100% [A[A[A[A[A[A[A[A
 
 
 
 
+aiohttp-3.12.15      | 808 KB    | #########7 |  97% [A[A[A[A[A[A[A[A[A
 
 
-aiohttp-3.12.15      | 808 KB    | ###7       |  38% [A[A[A[A[A[A[A
 
 
 
@@ -507,8 +528,8 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+lcms2-2.17           | 499 KB    | 3          |   3% [A[A[A[A[A[A[A[A[A[A[A
 
-huggingface_hub-0.34 | 326 KB    | 4          |   5% [A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -516,9 +537,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+aiohttp-3.12.15      | 808 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A
 
 
-huggingface_hub-0.34 | 326 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -527,18 +548,19 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+lcms2-2.17           | 499 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A
 
 
 
-pydantic-2.11.7      | 300 KB    | 5          |   5% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
+libxcb-1.16          | 966 KB    | ########## | 100% [A[A[A[A[A[A
 
 
 
 
-aiohttp-3.12.15      | 808 KB    | #######7   |  77% [A[A[A[A[A[A[A
 
+libxcb-1.16          | 966 KB    | ########## | 100% [A[A[A[A[A[A
 
 
 
@@ -546,17 +568,17 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+libjpeg-turbo-3.1.0  | 819 KB    | 1          |   2% [A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 5          |   5% 
 
 
 
-pydantic-2.11.7      | 300 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
 
-aiohttp-3.12.15      | 808 KB    | ########## | 100% [A[A[A[A[A[A[A
+tornado-6.5.2        | 648 KB    | ######6    |  67% [A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -567,8 +589,8 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-regex-2025.7.34      | 311 KB    | 5          |   5% [A[A[A[A[A[A[A[A[A[A[A
 
+altair-5.5.0         | 482 KB    | 3          |   3% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -578,14 +600,15 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+tornado-6.5.2        | 648 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A
 
 
-safetensors-0.6.2    | 288 KB    | 5          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
+libjpeg-turbo-3.1.0  | 819 KB    | ########## | 100% [A[A[A[A[A[A[A[A
 
 
 
@@ -594,11 +617,11 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-multiprocess-0.70.16 | 264 KB    | 6          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
+protobuf-5.28.3      | 371 KB    | 4          |   4% [A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 5          |   6% 
 
 
 
@@ -610,11 +633,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-peft-0.17.1          | 245 KB    | 6          |   7% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
-sentencepiece-python | 2.3 MB    | ########## | 100% [A[A
+protobuf-5.28.3      | 371 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
-sentencepiece-python | 2.3 MB    | ########## | 100% [A[A
 
 
 
@@ -625,9 +646,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+altair-5.5.0         | 482 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
-safetensors-0.6.2    | 288 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -640,9 +661,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+libwebp-base-1.6.0   | 273 KB    | 5          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
-accelerate-1.10.0    | 262 KB    | 6          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -656,9 +677,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+multiprocess-0.70.16 | 264 KB    | 6          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 6          |   6% 
 
 
-peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -669,8 +690,8 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-regex-2025.7.34      | 311 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A
 
+datasets-4.0.0       | 348 KB    | 4          |   5% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -680,7 +701,6 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-regex-2025.7.34      | 311 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -688,6 +708,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+accelerate-1.10.0    | 262 KB    | 6          |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -695,7 +716,6 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -703,13 +723,13 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+libwebp-base-1.6.0   | 273 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
 
-multiprocess-0.70.16 | 264 KB    | #########6 |  97% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -719,17 +739,16 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+multiprocess-0.70.16 | 264 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
-multiprocess-0.70.16 | 264 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
-pygments-2.19.2      | 868 KB    | ########## | 100% [A[A[A[A[A[A
 
 
 
@@ -737,6 +756,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -746,11 +766,11 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-rich-14.1.0          | 196 KB    | 8          |   8% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
+datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -763,13 +783,12 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-rich-14.1.0          | 196 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
-tokenizers-0.21.4    | 1.8 MB    | ########## | 100% [A[A[A
 
 
 
+peft-0.17.1          | 245 KB    | 6          |   7% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -785,77 +804,10 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
-
-
-
-
-
-datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-sentencepiece-spm-0. | 170 KB    | 9          |   9% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-psutil-7.0.0         | 361 KB    | ########## | 100% [A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-psutil-7.0.0         | 361 KB    | ########## | 100% [A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-sentencepiece-spm-0. | 170 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+ ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 6          |   7% 
 
 
 
@@ -886,30 +838,33 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-pydantic-2.11.7      | 300 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
 
+peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 7          |   7% pillow-10.4.0        | 40.3 MB   | 7          |   8% pillow-10.4.0        | 40.3 MB   | 8          |   8% 
 
 
 
 
 
-pydantic-2.11.7      | 300 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
+libtiff-4.7.0        | 961 KB    | ########## | 100% [A[A[A[A[A[A[A
 
 
 
 
 
 
+libtiff-4.7.0        | 961 KB    | ########## | 100% [A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | 8          |   9% pillow-10.4.0        | 40.3 MB   | 9          |  10% 
 
 
-huggingface_hub-0.34 | 326 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A
+pydeck-0.9.1         | 4.6 MB    | ########## | 100% [A[A[Apillow-10.4.0        | 40.3 MB   | #          |  10% pillow-10.4.0        | 40.3 MB   | #          |  11% pillow-10.4.0        | 40.3 MB   | #1         |  11% pillow-10.4.0        | 40.3 MB   | #2         |  12% pillow-10.4.0        | 40.3 MB   | #3         |  13% pillow-10.4.0        | 40.3 MB   | #4         |  14% pillow-10.4.0        | 40.3 MB   | #4         |  15% pillow-10.4.0        | 40.3 MB   | #6         |  16% pillow-10.4.0        | 40.3 MB   | #7         |  17% 
 
+numpy-2.2.6          | 6.3 MB    | ########## | 100% [A[A
+streamlit-1.48.1     | 7.9 MB    | ########## | 100% [A
 
 
 
@@ -918,9 +873,9 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-huggingface_hub-0.34 | 326 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A
 
 
+lcms2-2.17           | 499 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -931,7 +886,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-safetensors-0.6.2    | 288 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
+lcms2-2.17           | 499 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | #8         |  18% pillow-10.4.0        | 40.3 MB   | #9         |  20% pillow-10.4.0        | 40.3 MB   | ##         |  21% 
 
 
 
@@ -941,23 +896,24 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+tornado-6.5.2        | 648 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A
 
 
 
-safetensors-0.6.2    | 288 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
+aiohttp-3.12.15      | 808 KB    | ########## | 100% [A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ##2        |  22% 
 
-aiohttp-3.12.15      | 808 KB    | ########## | 100% [A[A[A[A[A[A[A
 
 
 
 
 
 
+libjpeg-turbo-3.1.0  | 819 KB    | ########## | 100% [A[A[A[A[A[A[A[A
 
 
 
@@ -965,13 +921,15 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+libjpeg-turbo-3.1.0  | 819 KB    | ########## | 100% [A[A[A[A[A[A[A[A
 
 
-peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
+transformers-4.55.4  | 3.9 MB    | ########## | 100% [A[A[A[A
 
 
 
+transformers-4.55.4  | 3.9 MB    | ########## | 100% [A[A[A[Apillow-10.4.0        | 40.3 MB   | ##3        |  24% 
 
 
 
@@ -983,10 +941,10 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
+libwebp-base-1.6.0   | 273 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -994,7 +952,6 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-regex-2025.7.34      | 311 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1002,6 +959,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+libwebp-base-1.6.0   | 273 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1009,12 +967,12 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
+protobuf-5.28.3      | 371 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1024,10 +982,10 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
+protobuf-5.28.3      | 371 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ##5        |  25% 
 
 
 
@@ -1038,8 +996,8 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-multiprocess-0.70.16 | 264 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
+altair-5.5.0         | 482 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1051,11 +1009,11 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+altair-5.5.0         | 482 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
-rich-14.1.0          | 196 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1067,12 +1025,12 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+multiprocess-0.70.16 | 264 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
 
 
-rich-14.1.0          | 196 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1083,6 +1041,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+multiprocess-0.70.16 | 264 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ##7        |  27% 
 
 
 
@@ -1090,7 +1049,6 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-sentencepiece-spm-0. | 170 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1100,6 +1058,7 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
+accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1108,7 +1067,15 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-sentencepiece-spm-0. | 170 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+accelerate-1.10.0    | 262 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
 
 
 
@@ -1146,7 +1113,71 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Atransformers-4.55.4  | 3.9 MB    | ########## | 100% 
+ ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ##8        |  29% 
+
+
+
+
+
+
+
+
+
+
+
+
+
+datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+
+
+
+
+
+datasets-4.0.0       | 348 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ###        |  30% 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+peft-0.17.1          | 245 KB    | ########## | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Apillow-10.4.0        | 40.3 MB   | ###2       |  32% pillow-10.4.0        | 40.3 MB   | ###4       |  34% pillow-10.4.0        | 40.3 MB   | ###6       |  36% pillow-10.4.0        | 40.3 MB   | ###8       |  38% pillow-10.4.0        | 40.3 MB   | ####       |  41% pillow-10.4.0        | 40.3 MB   | ####3      |  43% pillow-10.4.0        | 40.3 MB   | ####5      |  46% pillow-10.4.0        | 40.3 MB   | ####8      |  48% pillow-10.4.0        | 40.3 MB   | #####      |  51% pillow-10.4.0        | 40.3 MB   | #####3     |  54% pillow-10.4.0        | 40.3 MB   | #####6     |  56% pillow-10.4.0        | 40.3 MB   | #####9     |  59% pillow-10.4.0        | 40.3 MB   | ######2    |  62% pillow-10.4.0        | 40.3 MB   | ######5    |  65% pillow-10.4.0        | 40.3 MB   | ######8    |  68% pillow-10.4.0        | 40.3 MB   | #######2   |  72% pillow-10.4.0        | 40.3 MB   | #######5   |  76% pillow-10.4.0        | 40.3 MB   | #######9   |  79% pillow-10.4.0        | 40.3 MB   | ########4  |  84% pillow-10.4.0        | 40.3 MB   | ########8  |  88% pillow-10.4.0        | 40.3 MB   | #########3 |  93% pillow-10.4.0        | 40.3 MB   | #########7 |  97% pillow-10.4.0        | 40.3 MB   | ########## | 100% pillow-10.4.0        | 40.3 MB   | ########## | 100% 
 
 
 
@@ -1517,7 +1548,63 @@ Downloading and Extracting Packages: ...working...transformers-4.55.4  | 3.9 MB
 
 
 
-[A[A[A[A done
-Preparing transaction: - \ done
-Verifying transaction: / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | done
-Executing transaction: - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / done
+[A[A[A[A
+
+
+
+
+[A[A[A[A[A
+
+
+
+
+
+[A[A[A[A[A[A
+
+
+
+
+
+
+[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+[A[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+
+[A[A[A[A[A[A[A[A[A[A
+
+
+
+
+
+
+
+
+
+
+[A[A[A[A[A[A[A[A[A[A[A done
+Preparing transaction: - \ | done
+Verifying transaction: - \ | / - \ | / - \ | done
+Executing transaction: - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ done

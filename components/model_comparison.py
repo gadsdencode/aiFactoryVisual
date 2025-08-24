@@ -10,14 +10,24 @@ def render_model_comparison():
     st.title("🔍 Model Comparison")
     st.markdown("Compare performance across different model configurations")
     
+    # Guard: ensure model_data exists and has required columns
+    if 'model_data' not in st.session_state or st.session_state.model_data is None or st.session_state.model_data.empty:
+        st.info("No model comparison data available yet. Start a training run to populate results.")
+        return
+
     # Model selection
     col1, col2 = st.columns([2, 1])
     
     with col1:
+        try:
+            unique_models = st.session_state.model_data['model_name'].unique()
+        except Exception:
+            st.warning("Model data format unexpected: missing 'model_name' column.")
+            return
         selected_models = st.multiselect(
             "Select models to compare:",
-            options=st.session_state.model_data['model_name'].unique(),
-            default=st.session_state.model_data['model_name'].unique()[:3]
+            options=unique_models,
+            default=unique_models[:3]
         )
     
     with col2:
@@ -178,3 +188,10 @@ def render_model_comparison():
         best_memory = filtered_data.loc[filtered_data['memory_usage'].idxmin()]
         st.warning(f"**Lowest Memory**: {best_memory['model_name']}")
         st.write(f"Memory Usage: {best_memory['memory_usage']:.1f}GB")
+
+
+def model_comparison_tab():
+    """
+    Backwards-compatible alias used by app.py.
+    """
+    return render_model_comparison()
