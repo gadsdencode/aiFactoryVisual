@@ -1,12 +1,12 @@
 import streamlit as st
-from threading import Thread
+from threading import Thread, Event
 import queue
 import pandas as pd
 import yaml
 from types import SimpleNamespace
 
 from backend.config import load_config
-from backend.data import load_and_prepare_dataset
+from backend.data import load_and_prepare_dataset, load_validation_dataset
 from backend.model_setup import setup_model_and_tokenizer
 from backend.trainer import run_training_in_thread
 
@@ -20,6 +20,7 @@ class TrainingManager:
         self.metrics_queue = queue.Queue()
         self.is_training = False
         self.paused = False
+        self.stop_event: Event | None = None
         self.current_epoch = 0
         self.progress = 0.0
         self.max_epochs = 1
@@ -48,6 +49,7 @@ class TrainingManager:
             except Exception:
                 self.max_epochs = 1
             dataset = load_and_prepare_dataset(config)
+            eval_dataset = load_validation_dataset(config)
             if dataset is None:
                 st.error("Dataset loading failed. Aborting training.")
                 return False
@@ -59,9 +61,11 @@ class TrainingManager:
 
             # Start training in a background thread
             self.is_training = True
+            # create a stop signal for the background trainer
+            self.stop_event = Event()
             self.training_thread = Thread(
                 target=run_training_in_thread,
-                args=(config, model, tokenizer, dataset, self.log_queue, self.metrics_queue)
+                args=(config, model, tokenizer, dataset, eval_dataset, self.log_queue, self.metrics_queue, self.stop_event)
             )
             self.training_thread.daemon = True
             self.training_thread.start()
@@ -82,16 +86,15 @@ class TrainingManager:
         Note: Forcefully stopping a thread is not recommended. This is a placeholder
         for a more graceful shutdown mechanism if the training library supports it.
         """
-        if not self.is_training:
+        if not self.is_training and (self.training_thread is None or not self.training_thread.is_alive()):
+            # Allow idempotent stop: if a recent start failed or finished, just log
             st.warning("No training is currently in progress.")
             return False
 
-        # A more graceful way would be to use a flag that the training loop checks.
-        # Since we are using the Hugging Face Trainer, this is not straightforward.
-        # For now, we'll just log the intention and let it finish.
-        self.log_queue.put("--- Stop request received. Training will complete the current step and then finish. ---")
-        self.is_training = False
-        st.session_state.training_started = False
+        # Signal the background thread to request a graceful stop at the next step boundary
+        if self.stop_event is not None:
+            self.stop_event.set()
+        self.log_queue.put("--- Stop request received. Trainer will stop at the next step. ---")
         st.info("Training will stop after the current epoch/step. The thread cannot be forcefully terminated.")
         return True
 
@@ -115,6 +118,8 @@ class TrainingManager:
             self.log_queue.queue.clear()
         with self.metrics_queue.mutex:
             self.metrics_queue.queue.clear()
+        # clear stop signal
+        self.stop_event = None
 
 
     def get_logs(self):
@@ -186,8 +191,9 @@ class TrainingManager:
             if self.max_epochs > 0:
                 self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
 
+        thread_alive = bool(self.training_thread and self.training_thread.is_alive())
         return {
-            'active': self.is_training,
+            'active': bool(self.is_training or thread_alive),
             'paused': self.paused,
             'current_epoch': self.current_epoch,
             'progress': float(self.progress),
@@ -202,8 +208,8 @@ class TrainingManager:
         """
         app_cfg = load_config("config.yaml")
         data_ns = SimpleNamespace(
-            train_file=f"hf:{app_cfg.dataset_name}:{app_cfg.dataset_split}",
-            validation_file=f"hf:{app_cfg.dataset_name}:validation"
+            train_file=(app_cfg.local_train_path if getattr(app_cfg, 'data_source', 'hf') == 'local' else f"hf:{app_cfg.dataset_name}:{app_cfg.dataset_split}"),
+            validation_file=(app_cfg.local_validation_path if getattr(app_cfg, 'data_source', 'hf') == 'local' else f"hf:{app_cfg.dataset_name}:validation")
         )
         model_ns = SimpleNamespace(
             max_length=app_cfg.training.max_seq_length or 0,
@@ -330,6 +336,10 @@ class TrainingManager:
             training['save_steps'] = int(new_config['adv_save_steps'])
         if 'adv_report_to' in new_config and new_config['adv_report_to']:
             training['report_to'] = str(new_config['adv_report_to'])
+        if 'adv_evaluation_strategy' in new_config:
+            training['evaluation_strategy'] = str(new_config['adv_evaluation_strategy'])
+        if 'adv_eval_steps' in new_config and new_config['adv_eval_steps']:
+            training['eval_steps'] = int(new_config['adv_eval_steps'])
 
         # base model is stored at top-level key 'base_model'
         if 'model_name' in new_config and new_config['model_name']:
@@ -367,6 +377,14 @@ class TrainingManager:
         # optionally store HF token in session only
         if hf_token:
             st.session_state['hf_token'] = hf_token
+
+        # data source persistence
+        if 'data_source' in new_config:
+            yaml_cfg['data_source'] = str(new_config['data_source'])
+        if 'local_train_path' in new_config and new_config['local_train_path']:
+            yaml_cfg['local_train_path'] = str(new_config['local_train_path'])
+        if 'local_validation_path' in new_config and new_config['local_validation_path']:
+            yaml_cfg['local_validation_path'] = str(new_config['local_validation_path'])
 
         # write back to file
         try:

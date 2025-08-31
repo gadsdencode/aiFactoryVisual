@@ -17,14 +17,14 @@ def render_training_dashboard():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("▶️ Start Training", type="primary", use_container_width=True):
+        if st.button("▶️ Start Training", type="primary", width='stretch'):
             if training_manager.start_training():
                 st.success("Training started!")
             else:
                 st.warning("Training is already active!")
     
     with col2:
-        if st.button("⏸️ Pause Training", use_container_width=True):
+        if st.button("⏸️ Pause Training", width='stretch'):
             if training_manager.pause_training():
                 status = training_manager.get_status()
                 if status['paused']:
@@ -35,14 +35,14 @@ def render_training_dashboard():
                 st.warning("No active training to pause/resume!")
     
     with col3:
-        if st.button("⏹️ Stop Training", use_container_width=True):
+        if st.button("⏹️ Stop Training", width='stretch'):
             if training_manager.stop_training():
                 st.error("Training stopped!")
             else:
                 st.warning("No active training to stop!")
     
     with col4:
-        if st.button("🔄 Reset", use_container_width=True):
+        if st.button("🔄 Reset", width='stretch'):
             training_manager.reset_training()
             st.info("Training reset!")
     
@@ -226,6 +226,12 @@ def render_training_dashboard():
             display_data,
             use_container_width=True
         )
+
+    # Stream live log lines
+    logs = training_manager.get_logs()
+    if logs:
+        for line in logs[-50:]:
+            st.text(line)
 
 
 def training_dashboard(log_placeholder=None, metrics_placeholder=None):

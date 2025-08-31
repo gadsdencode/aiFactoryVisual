@@ -26,7 +26,7 @@ def render_configuration():
             )
         
         with col_token2:
-            if st.button("💾 Save Token", use_container_width=True):
+            if st.button("💾 Save Token", width='stretch'):
                 if hf_token:
                     st.session_state['hf_token'] = hf_token
                     st.success("Token saved!")
@@ -214,8 +214,9 @@ def render_configuration():
         
         col_data1, col_data2 = st.columns(2)
         with col_data1:
-            st.text_input("Training Data Path", value=yaml_config.data.train_file, disabled=True)
-            st.text_input("Validation Data Path", value=yaml_config.data.validation_file, disabled=True)
+            data_source = st.selectbox("Data Source", ["hf", "local"], index=["hf","local"].index("local" if str(yaml_config.data.train_file).startswith((".", "/", "\\")) else "hf"))
+            train_path = st.text_input("Training Data Path", value=yaml_config.data.train_file if data_source == "local" else "", placeholder="path/to/train.jsonl or dataset dir")
+            val_path = st.text_input("Validation Data Path", value=yaml_config.data.validation_file if data_source == "local" else "", placeholder="optional path/to/val.jsonl")
         
         with col_data2: 
             max_seq_length_adv = st.number_input("Max Sequence Length", value=yaml_config.model.max_length or 0, min_value=0, step=16)
@@ -250,6 +251,8 @@ def render_configuration():
         logging_steps_adv = st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, min_value=1)
         save_steps_adv = st.number_input("Save Every N Steps", value=yaml_config.training.save_steps, min_value=1)
         report_to_adv = st.text_input("Report To", value=yaml_config.training.report_to)
+        eval_enabled = st.checkbox("Enable Evaluation", value=(getattr(yaml_config.training, 'evaluation_strategy', 'no') != 'no'))
+        eval_steps_ui = st.number_input("Eval Every N Steps", value=int(getattr(yaml_config.training, 'eval_steps', 100)), min_value=10, step=10)
     
     st.markdown("---")
     
@@ -257,7 +260,7 @@ def render_configuration():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+        if st.button("💾 Save Configuration", type="primary", width='stretch'):
             new_config = {
                 'learning_rate': learning_rate,
                 'batch_size': batch_size,
@@ -279,6 +282,13 @@ def render_configuration():
                 'adv_save_steps': int(save_steps_adv),
                 'adv_report_to': report_to_adv,
                 'adv_gradient_checkpointing': bool(grad_ckpt_adv),
+                # Data source settings
+                'data_source': data_source,
+                'local_train_path': train_path if data_source == 'local' else None,
+                'local_validation_path': val_path if data_source == 'local' else None,
+                # Eval settings
+                'adv_evaluation_strategy': ('steps' if eval_enabled else 'no'),
+                'adv_eval_steps': int(eval_steps_ui),
             }
             hf_token = st.session_state.get('hf_token', None)
             if training_manager.update_config(new_config, hf_token):
@@ -287,7 +297,7 @@ def render_configuration():
                 st.error("Cannot update configuration during active training!")
     
     with col2:
-        if st.button("🔄 Reset to Defaults", use_container_width=True):
+        if st.button("🔄 Reset to Defaults", width='stretch'):
             default_config = {
                 'learning_rate': 0.0002,
                 'batch_size': 2,
@@ -304,7 +314,7 @@ def render_configuration():
                 st.error("Cannot reset configuration during active training!")
     
     with col3:
-        if st.button("📤 Export Config", use_container_width=True):
+        if st.button("📤 Export Config", width='stretch'):
             config_json = json.dumps(config, indent=2)
             st.download_button(
                 label="Download JSON",

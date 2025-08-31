@@ -36,6 +36,8 @@ class TrainingConfig(BaseModel):
     optim: str = "paged_adamw_32bit"
     save_steps: int = 25
     logging_steps: int = 25
+    evaluation_strategy: str = "no"  # "no", "steps", "epoch"
+    eval_steps: int = 100
     learning_rate: float = 2e-4
     weight_decay: float = 0.001
     fp16: bool = False
@@ -63,6 +65,11 @@ class AppConfig(BaseModel):
     dataset_name: str
     dataset_split: str
     text_column: str
+    # Data source configuration
+    data_source: str = "hf"  # 'hf' or 'local'
+    local_train_path: Optional[str] = None
+    local_validation_path: Optional[str] = None
+    data_format: Optional[str] = None  # 'json', 'csv', 'parquet'
     quantization: QuantizationConfig
     lora: LoRAConfig
     training: TrainingConfig

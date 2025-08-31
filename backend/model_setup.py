@@ -35,9 +35,26 @@ def setup_model_and_tokenizer(config: AppConfig):
 
         # --- Load Base Model ---
         st.info(f"Loading base model: {config.base_model}")
+        # Log basic hardware for transparency
+        try:
+            import torch
+            device_info = "cuda" if torch.cuda.is_available() else "cpu"
+            gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "-"
+            vram = torch.cuda.get_device_properties(0).total_memory / (1024**3) if torch.cuda.is_available() else 0
+            st.info(f"Device: {device_info}, GPU: {gpu_name}, VRAM: {vram:.1f}GB")
+        except Exception:
+            pass
+        # --- Device/DType Strategy ---
+        import torch
+        use_cuda = torch.cuda.is_available()
+        torch_dtype = torch.float16 if use_cuda else torch.float32
+        device_map = config.training.device_map if 'quantization_config' in quantization_kwargs else ({"": 0} if use_cuda else "cpu")
+
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
-            device_map=config.training.device_map,
+            device_map=device_map,
+            torch_dtype=torch_dtype,
+            low_cpu_mem_usage=True,
             **quantization_kwargs,
         )
         model.config.use_cache = False
@@ -49,6 +66,11 @@ def setup_model_and_tokenizer(config: AppConfig):
         tokenizer = AutoTokenizer.from_pretrained(config.base_model, trust_remote_code=True)
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
+        if getattr(config.training, 'max_seq_length', None):
+            try:
+                tokenizer.model_max_length = int(config.training.max_seq_length)
+            except Exception:
+                pass
         st.success("Tokenizer loaded successfully.")
 
         # --- LoRA Configuration ---
@@ -66,7 +88,17 @@ def setup_model_and_tokenizer(config: AppConfig):
         model = get_peft_model(model, peft_config)
         st.success("LoRA configuration applied to the model.")
         
-        model.print_trainable_parameters()
+        if getattr(config.training, 'gradient_checkpointing', False):
+            try:
+                model.gradient_checkpointing_enable()
+                st.info("Gradient checkpointing enabled on model.")
+            except Exception:
+                pass
+
+        try:
+            model.print_trainable_parameters()
+        except Exception:
+            pass
 
         return model, tokenizer
 
