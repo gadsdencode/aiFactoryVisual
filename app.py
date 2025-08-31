@@ -79,9 +79,17 @@ def main():
 
             new_metrics = manager.get_metrics()
             if not new_metrics.empty:
-                st.session_state.metrics_data = pd.concat(
-                    [st.session_state.metrics_data, new_metrics]
-                ).drop_duplicates(subset=['step'], keep='last')
+                # Ensure consistent columns and drop dup steps
+                cols = [
+                    'step','epoch','train_loss','val_loss','train_accuracy','val_accuracy','learning_rate','timestamp'
+                ]
+                for c in cols:
+                    if c not in st.session_state.metrics_data.columns:
+                        st.session_state.metrics_data[c] = pd.Series(dtype='float64')
+                st.session_state.metrics_data = (
+                    pd.concat([st.session_state.metrics_data, new_metrics], ignore_index=True)
+                    .drop_duplicates(subset=['step'], keep='last')
+                )
 
             time.sleep(5)
             st.rerun()

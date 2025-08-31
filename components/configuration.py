@@ -70,9 +70,10 @@ def render_configuration():
             index=[1, 2, 4, 8, 16, 32].index(config['batch_size'])
         )
         
+        # The app expects epochs up to 200 in UI; config may have small values
         max_epochs = st.slider(
             "Maximum Epochs",
-            min_value=10,
+            min_value=1,
             max_value=200,
             value=config['max_epochs'],
             step=10
@@ -181,7 +182,7 @@ def render_configuration():
             else:
                 model_name = config['model_name']
         
-        optimizer_options = ["paged_adamw_8bit", "adamw_torch", "adafactor"]
+        optimizer_options = ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"]
         try:
             optimizer_index = optimizer_options.index(config['optimizer'])
         except ValueError:
@@ -217,26 +218,38 @@ def render_configuration():
             st.text_input("Validation Data Path", value=yaml_config.data.validation_file, disabled=True)
         
         with col_data2: 
-            st.number_input("Max Sequence Length", value=yaml_config.model.max_length, disabled=True)
-            st.text_input("Attention Implementation", value=yaml_config.model.attn_implementation, disabled=True)
+            max_seq_length_adv = st.number_input("Max Sequence Length", value=yaml_config.model.max_length or 0, min_value=0, step=16)
+            attn_impl_adv = st.text_input("Attention Implementation", value=yaml_config.model.attn_implementation)
     
     with st.expander("🖥️ Hardware & Memory Configuration"):
         col_hw1, col_hw2 = st.columns(2)
         
         with col_hw1:
             st.selectbox("GPU Count", [1, 2, 4, 8], index=0, disabled=True)
-            st.checkbox("4-bit Quantization", value=yaml_config.quantization.enabled, disabled=True, help="Enables QLoRA for memory efficiency")
-            st.text_input("Quantization Type", value=yaml_config.quantization.quant_type, disabled=True)
+            q_enabled_adv = st.checkbox("4-bit Quantization", value=yaml_config.quantization.enabled, help="Enables QLoRA for memory efficiency")
+            quant_types = ["nf4", "fp4"]
+            q_type_current = str(yaml_config.quantization.quant_type or "nf4")
+            q_type_index = quant_types.index(q_type_current) if q_type_current in quant_types else 0
+            q_type_adv = st.selectbox("Quantization Type", options=quant_types, index=q_type_index)
+
+            compute_types = ["float16", "bfloat16"]
+            q_compute_current = str(yaml_config.quantization.compute_dtype or "float16")
+            if q_compute_current.startswith("torch."):
+                q_compute_current = q_compute_current.split(".", 1)[1]
+            q_compute_index = compute_types.index(q_compute_current) if q_compute_current in compute_types else 0
+            q_compute_adv = st.selectbox("Compute DType", options=compute_types, index=q_compute_index)
         
         with col_hw2:
-            st.checkbox("Gradient Checkpointing", value=yaml_config.training.gradient_checkpointing, disabled=True, help="Trades compute for memory")
-            st.checkbox("Double Quantization", value=yaml_config.quantization.use_double_quant, disabled=True)
-            st.number_input("LoRA Rank (r)", value=yaml_config.lora.r, disabled=True)
+            grad_ckpt_adv = st.checkbox("Gradient Checkpointing", value=yaml_config.training.gradient_checkpointing, help="Trades compute for memory")
+            q_double_adv = st.checkbox("Double Quantization", value=yaml_config.quantization.use_double_quant)
+            lora_r_adv = st.number_input("LoRA Rank (r)", value=yaml_config.lora.r, min_value=1)
+            lora_alpha_adv = st.number_input("LoRA Alpha", value=yaml_config.lora.alpha, min_value=1)
+            lora_dropout_adv = st.number_input("LoRA Dropout", value=float(yaml_config.lora.dropout), min_value=0.0, max_value=0.9, step=0.05, format="%.2f")
     
     with st.expander("📝 Logging Configuration"):
-        st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, disabled=True)
-        st.number_input("Save Every N Steps", value=yaml_config.training.save_steps, disabled=True)
-        st.text_input("Report To", value=yaml_config.training.report_to, disabled=True)
+        logging_steps_adv = st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, min_value=1)
+        save_steps_adv = st.number_input("Save Every N Steps", value=yaml_config.training.save_steps, min_value=1)
+        report_to_adv = st.text_input("Report To", value=yaml_config.training.report_to)
     
     st.markdown("---")
     
@@ -251,7 +264,21 @@ def render_configuration():
                 'max_epochs': max_epochs,
                 'model_name': model_name,
                 'optimizer': optimizer,
-                'warmup_steps': warmup_steps
+                'warmup_steps': warmup_steps,
+                # Advanced settings
+                'adv_max_seq_length': int(max_seq_length_adv) if max_seq_length_adv else None,
+                'adv_attn_impl': attn_impl_adv,
+                'adv_quant_enabled': bool(q_enabled_adv),
+                'adv_quant_type': q_type_adv,
+                'adv_quant_double': bool(q_double_adv),
+                'adv_quant_compute_dtype': q_compute_adv,
+                'adv_lora_r': int(lora_r_adv),
+                'adv_lora_alpha': int(lora_alpha_adv),
+                'adv_lora_dropout': float(lora_dropout_adv),
+                'adv_logging_steps': int(logging_steps_adv),
+                'adv_save_steps': int(save_steps_adv),
+                'adv_report_to': report_to_adv,
+                'adv_gradient_checkpointing': bool(grad_ckpt_adv),
             }
             hf_token = st.session_state.get('hf_token', None)
             if training_manager.update_config(new_config, hf_token):

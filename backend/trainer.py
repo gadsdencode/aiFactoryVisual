@@ -44,7 +44,29 @@ def run_training_in_thread(config, model, tokenizer, dataset, log_queue, metrics
             hf_login(config.huggingface.hub_token)
 
         # --- Training Arguments ---
-        training_args = TrainingArguments(**config.training.dict())
+        # Only pass fields supported by TrainingArguments. Some items in our
+        # config (e.g., max_seq_length, packing, device_map) are used by the
+        # model or SFTTrainer, not by TrainingArguments.
+        training_args = TrainingArguments(
+            output_dir=config.training.output_dir,
+            num_train_epochs=config.training.num_train_epochs,
+            per_device_train_batch_size=config.training.per_device_train_batch_size,
+            gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+            optim=config.training.optim,
+            save_steps=config.training.save_steps,
+            logging_steps=config.training.logging_steps,
+            learning_rate=config.training.learning_rate,
+            weight_decay=config.training.weight_decay,
+            fp16=config.training.fp16,
+            bf16=config.training.bf16,
+            gradient_checkpointing=config.training.gradient_checkpointing,
+            max_grad_norm=config.training.max_grad_norm,
+            max_steps=config.training.max_steps,
+            warmup_ratio=config.training.warmup_ratio,
+            group_by_length=config.training.group_by_length,
+            lr_scheduler_type=config.training.lr_scheduler_type,
+            report_to=config.training.report_to,
+        )
 
         # --- Initialize Trainer ---
         streamlit_callback = StreamlitCallback(log_queue, metrics_queue)

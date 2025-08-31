@@ -135,12 +135,39 @@ class TrainingManager:
         """
         Retrieves all available metrics from the queue and concatenates them.
         """
-        all_metrics_df = pd.DataFrame()
+        standardized_frames = []
+        expected_cols = [
+            'step', 'epoch', 'train_loss', 'val_loss',
+            'train_accuracy', 'val_accuracy', 'learning_rate', 'timestamp'
+        ]
         while not self.metrics_queue.empty():
             metric_df = self.metrics_queue.get()
-            all_metrics_df = pd.concat([all_metrics_df, metric_df])
-        
-        return all_metrics_df.reset_index(drop=True)
+            # Normalize incoming logs (which may contain: step, loss, learning_rate, epoch)
+            try:
+                df = pd.DataFrame(metric_df)
+            except Exception:
+                df = metric_df if isinstance(metric_df, pd.DataFrame) else pd.DataFrame()
+
+            normalized = pd.DataFrame()
+            normalized['step'] = df.get('step')
+            normalized['epoch'] = df.get('epoch')
+            # Map generic loss -> train_loss; validation metrics may be absent
+            normalized['train_loss'] = df.get('train_loss', df.get('loss'))
+            normalized['val_loss'] = df.get('val_loss')
+            normalized['train_accuracy'] = df.get('train_accuracy')
+            normalized['val_accuracy'] = df.get('val_accuracy')
+            normalized['learning_rate'] = df.get('learning_rate')
+            normalized['timestamp'] = pd.Timestamp.utcnow()
+
+            # Ensure column order and presence
+            normalized = normalized.reindex(columns=expected_cols)
+            standardized_frames.append(normalized)
+
+        if not standardized_frames:
+            return pd.DataFrame(columns=expected_cols)
+
+        out = pd.concat(standardized_frames).reset_index(drop=True)
+        return out
 
     def get_status(self):
         """
@@ -182,10 +209,27 @@ class TrainingManager:
             max_length=app_cfg.training.max_seq_length or 0,
             attn_implementation="auto",
         )
+        # Normalize compute dtype to a plain string ("float16" or "bfloat16") for the UI
+        dtype_val = app_cfg.quantization.bnb_4bit_compute_dtype
+        try:
+            import torch  # type: ignore
+            if isinstance(dtype_val, torch.dtype):
+                if dtype_val == torch.bfloat16:
+                    dtype_str = 'bfloat16'
+                else:
+                    dtype_str = 'float16'
+            else:
+                dtype_str = str(dtype_val)
+        except Exception:
+            dtype_str = str(dtype_val)
+        if dtype_str.startswith('torch.'):
+            dtype_str = dtype_str.split('.', 1)[1]
+
         quant_ns = SimpleNamespace(
             enabled=app_cfg.quantization.load_in_4bit,
             quant_type=app_cfg.quantization.bnb_4bit_quant_type,
             use_double_quant=app_cfg.quantization.bnb_4bit_use_double_quant,
+            compute_dtype=dtype_str,
         )
         training_ns = SimpleNamespace(
             learning_rate=app_cfg.training.learning_rate,
@@ -262,6 +306,8 @@ class TrainingManager:
         yaml_cfg = self._get_cached_yaml() or {}
         # ensure nested structure exists
         yaml_cfg.setdefault('training', {})
+        yaml_cfg.setdefault('quantization', {})
+        yaml_cfg.setdefault('lora', {})
 
         # map fields
         training = yaml_cfg['training']
@@ -269,14 +315,54 @@ class TrainingManager:
         training['per_device_train_batch_size'] = int(new_config.get('batch_size', training.get('per_device_train_batch_size', 4)))
         training['num_train_epochs'] = int(new_config.get('max_epochs', training.get('num_train_epochs', 1)))
         training['optim'] = str(new_config.get('optimizer', training.get('optim', 'paged_adamw_32bit')))
+        # advanced toggles
+        if 'adv_gradient_checkpointing' in new_config:
+            training['gradient_checkpointing'] = bool(new_config['adv_gradient_checkpointing'])
 
         # convert warmup_steps back into a ratio heuristic (divide by 10000.0)
         warmup_steps = int(new_config.get('warmup_steps', 1000))
         training['warmup_ratio'] = float(max(0.0, min(1.0, warmup_steps / 10000.0)))
 
+        # advanced training/logging fields
+        if 'adv_logging_steps' in new_config and new_config['adv_logging_steps']:
+            training['logging_steps'] = int(new_config['adv_logging_steps'])
+        if 'adv_save_steps' in new_config and new_config['adv_save_steps']:
+            training['save_steps'] = int(new_config['adv_save_steps'])
+        if 'adv_report_to' in new_config and new_config['adv_report_to']:
+            training['report_to'] = str(new_config['adv_report_to'])
+
         # base model is stored at top-level key 'base_model'
         if 'model_name' in new_config and new_config['model_name']:
             yaml_cfg['base_model'] = str(new_config['model_name'])
+
+        # advanced model/data fields
+        if 'adv_max_seq_length' in new_config:
+            training['max_seq_length'] = (int(new_config['adv_max_seq_length'])
+                                          if new_config['adv_max_seq_length'] else None)
+        if 'adv_attn_impl' in new_config and new_config['adv_attn_impl']:
+            # store as hint under training section for now
+            training['attn_implementation'] = str(new_config['adv_attn_impl'])
+
+        # quantization section
+        quant = yaml_cfg['quantization']
+        if 'adv_quant_enabled' in new_config:
+            quant['load_in_4bit'] = bool(new_config['adv_quant_enabled'])
+        if 'adv_quant_type' in new_config and new_config['adv_quant_type']:
+            quant['bnb_4bit_quant_type'] = str(new_config['adv_quant_type'])
+        if 'adv_quant_double' in new_config:
+            quant['bnb_4bit_use_double_quant'] = bool(new_config['adv_quant_double'])
+        if 'adv_quant_compute_dtype' in new_config and new_config['adv_quant_compute_dtype']:
+            # store raw string; pydantic validator will map to torch dtype
+            quant['bnb_4bit_compute_dtype'] = str(new_config['adv_quant_compute_dtype'])
+
+        # lora section
+        lora = yaml_cfg['lora']
+        if 'adv_lora_r' in new_config and new_config['adv_lora_r']:
+            lora['r'] = int(new_config['adv_lora_r'])
+        if 'adv_lora_alpha' in new_config and new_config['adv_lora_alpha']:
+            lora['alpha'] = int(new_config['adv_lora_alpha'])
+        if 'adv_lora_dropout' in new_config and new_config['adv_lora_dropout'] is not None:
+            lora['dropout'] = float(new_config['adv_lora_dropout'])
 
         # optionally store HF token in session only
         if hf_token:

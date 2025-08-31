@@ -40,6 +40,7 @@ class TrainingConfig(BaseModel):
     weight_decay: float = 0.001
     fp16: bool = False
     bf16: bool = False
+    gradient_checkpointing: bool = False
     max_grad_norm: float = 0.3
     max_steps: int = -1
     warmup_ratio: float = 0.03

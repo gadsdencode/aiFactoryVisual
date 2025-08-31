@@ -63,7 +63,11 @@ def render_training_dashboard():
         )
     
     with col2:
-        current_loss = training_data['train_loss'].iloc[-1] if not training_data.empty else 0.0
+        current_loss = (
+            training_data['train_loss'].dropna().iloc[-1]
+            if (not training_data.empty and 'train_loss' in training_data.columns and training_data['train_loss'].notna().any())
+            else 0.0
+        )
         st.metric(
             "Training Loss", 
             f"{current_loss:.4f}",
@@ -71,7 +75,11 @@ def render_training_dashboard():
         )
     
     with col3:
-        current_acc = training_data['train_accuracy'].iloc[-1] if not training_data.empty else 0.0
+        current_acc = (
+            training_data['train_accuracy'].dropna().iloc[-1]
+            if (not training_data.empty and 'train_accuracy' in training_data.columns and training_data['train_accuracy'].notna().any())
+            else 0.0
+        )
         st.metric(
             "Training Accuracy", 
             f"{current_acc:.2%}",
@@ -100,7 +108,7 @@ def render_training_dashboard():
         fig_loss = go.Figure()
         theme = get_chart_theme()
         
-        if not training_data.empty:
+        if not training_data.empty and 'epoch' in training_data.columns and 'train_loss' in training_data.columns:
             fig_loss.add_trace(go.Scatter(
                 x=training_data['epoch'],
                 y=training_data['train_loss'],
@@ -109,13 +117,14 @@ def render_training_dashboard():
                 line=dict(color=theme['line_colors'][0], width=3)
             ))
             
-            fig_loss.add_trace(go.Scatter(
-                x=training_data['epoch'],
-                y=training_data['val_loss'],
-                mode='lines',
-                name='Validation Loss',
-                line=dict(color=theme['line_colors'][1], width=3)
-            ))
+            if 'val_loss' in training_data.columns and training_data['val_loss'].notna().any():
+                fig_loss.add_trace(go.Scatter(
+                    x=training_data['epoch'],
+                    y=training_data['val_loss'],
+                    mode='lines',
+                    name='Validation Loss',
+                    line=dict(color=theme['line_colors'][1], width=3)
+                ))
         
         fig_loss.update_layout(
             title="Training & Validation Loss",
@@ -136,7 +145,7 @@ def render_training_dashboard():
         # Accuracy chart
         fig_acc = go.Figure()
         
-        if not training_data.empty:
+        if not training_data.empty and 'epoch' in training_data.columns and 'train_accuracy' in training_data.columns:
             fig_acc.add_trace(go.Scatter(
                 x=training_data['epoch'],
                 y=training_data['train_accuracy'],
@@ -145,13 +154,14 @@ def render_training_dashboard():
                 line=dict(color=theme['line_colors'][2], width=3)
             ))
             
-            fig_acc.add_trace(go.Scatter(
-                x=training_data['epoch'],
-                y=training_data['val_accuracy'],
-                mode='lines',
-                name='Validation Accuracy',
-                line=dict(color=theme['line_colors'][3], width=3)
-            ))
+            if 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
+                fig_acc.add_trace(go.Scatter(
+                    x=training_data['epoch'],
+                    y=training_data['val_accuracy'],
+                    mode='lines',
+                    name='Validation Accuracy',
+                    line=dict(color=theme['line_colors'][3], width=3)
+                ))
         
         fig_acc.update_layout(
             title="Training & Validation Accuracy",
@@ -171,7 +181,7 @@ def render_training_dashboard():
     
     fig_lr = go.Figure()
     
-    if not training_data.empty:
+    if not training_data.empty and 'epoch' in training_data.columns and 'learning_rate' in training_data.columns:
         fig_lr.add_trace(go.Scatter(
             x=training_data['epoch'],
             y=training_data['learning_rate'],

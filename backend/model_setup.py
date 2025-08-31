@@ -2,7 +2,6 @@ import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    BitsAndBytesConfig,
 )
 from peft import LoraConfig, get_peft_model
 from backend.config import AppConfig
@@ -19,20 +18,27 @@ def setup_model_and_tokenizer(config: AppConfig):
         tuple: A tuple containing the model and tokenizer.
     """
     try:
-        # --- Quantization Configuration ---
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=config.quantization.load_in_4bit,
-            bnb_4bit_quant_type=config.quantization.bnb_4bit_quant_type,
-            bnb_4bit_compute_dtype=config.quantization.bnb_4bit_compute_dtype,
-            bnb_4bit_use_double_quant=config.quantization.bnb_4bit_use_double_quant,
-        )
+        # --- Quantization Configuration (optional) ---
+        quantization_kwargs = {}
+        if bool(getattr(config.quantization, 'load_in_4bit', False)):
+            try:
+                from transformers import BitsAndBytesConfig  # type: ignore
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type=config.quantization.bnb_4bit_quant_type,
+                    bnb_4bit_compute_dtype=config.quantization.bnb_4bit_compute_dtype,
+                    bnb_4bit_use_double_quant=config.quantization.bnb_4bit_use_double_quant,
+                )
+                quantization_kwargs['quantization_config'] = bnb_config
+            except Exception:
+                st.warning("bitsandbytes not available; continuing without 4-bit quantization")
 
         # --- Load Base Model ---
         st.info(f"Loading base model: {config.base_model}")
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
-            quantization_config=bnb_config,
-            device_map=config.training.device_map
+            device_map=config.training.device_map,
+            **quantization_kwargs,
         )
         model.config.use_cache = False
         model.config.pretraining_tp = 1
