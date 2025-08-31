@@ -2,7 +2,8 @@ from datasets import load_dataset, Dataset, load_from_disk
 from backend.config import AppConfig
 import streamlit as st
 
-@st.cache_data
+# Cache large dataset objects as resources to avoid heavy hashing/serialization stalls
+@st.cache_resource
 def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
     """
     Loads a dataset from the Hugging Face Hub.
@@ -41,18 +42,21 @@ def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
         return None
 
 
-@st.cache_data
+@st.cache_resource
 def load_validation_dataset(_config: AppConfig) -> Dataset | None:
     try:
-        if getattr(_config, 'data_source', 'hf') == 'local' and getattr(_config, 'local_validation_path', None):
-            val_path = _config.local_validation_path
+        if getattr(_config, 'data_source', 'hf') == 'local':
+            val_path = getattr(_config, 'local_validation_path', None)
+            if not val_path:
+                return None
             if val_path.endswith(('.json', '.jsonl')):
-                return load_dataset('json', data_files=val_path, split='train')
-            if val_path.endswith('.csv'):
-                return load_dataset('csv', data_files=val_path, split='train')
-            if val_path.endswith(('.parquet', '.pq')):
-                return load_dataset('parquet', data_files=val_path, split='train')
-            ds = load_from_disk(val_path)
+                ds = load_dataset('json', data_files=val_path, split='train')
+            elif val_path.endswith('.csv'):
+                ds = load_dataset('csv', data_files=val_path, split='train')
+            elif val_path.endswith(('.parquet', '.pq')):
+                ds = load_dataset('parquet', data_files=val_path, split='train')
+            else:
+                ds = load_from_disk(val_path)
             return _ensure_text_column(ds, _config)
         # HF path: try explicit 'validation' split if present, else None
         try:
@@ -80,30 +84,35 @@ def _ensure_text_column(dataset: Dataset, _config: AppConfig) -> Dataset:
         'ideal_response_attributes', 'ideal_response_cot'
     ])
     if icdu_cols.intersection(set(dataset.column_names)):
-        def compose(example):
-            parts = []
-            instr = example.get('application_prompt') or example.get('user_intent')
-            ctx = example.get('context_summary')
-            persona_bits = []
-            for key in ['persona_archetype', 'governing_principle', 'capability_layer']:
-                val = example.get(key)
-                if val:
-                    persona_bits.append(f"{key.replace('_',' ').title()}: {val}")
-            persona = "\n".join(persona_bits) if persona_bits else None
-            resp = example.get('ideal_response_final') or example.get('ideal_response_cot')
+        def compose_batch(batch):
+            out = []
+            for i in range(len(next(iter(batch.values())))):
+                instr = (batch.get('application_prompt', [None])[i]
+                         or batch.get('user_intent', [None])[i])
+                ctx = batch.get('context_summary', [None])[i]
+                persona_bits = []
+                for key in ['persona_archetype', 'governing_principle', 'capability_layer']:
+                    vals = batch.get(key, None)
+                    val = vals[i] if vals is not None else None
+                    if val:
+                        persona_bits.append(f"{key.replace('_',' ').title()}: {val}")
+                persona = "\n".join(persona_bits) if persona_bits else None
+                resp = (batch.get('ideal_response_final', [None])[i]
+                        or batch.get('ideal_response_cot', [None])[i])
 
-            if instr:
-                parts.append(f"### Instruction\n{instr}")
-            if ctx:
-                parts.append(f"### Context\n{ctx}")
-            if persona:
-                parts.append(f"### Persona\n{persona}")
-            if resp:
-                parts.append(f"### Response\n{resp}")
-            text = "\n\n".join(parts) if parts else ""
-            return {target_col: text}
+                parts = []
+                if instr:
+                    parts.append(f"### Instruction\n{instr}")
+                if ctx:
+                    parts.append(f"### Context\n{ctx}")
+                if persona:
+                    parts.append(f"### Persona\n{persona}")
+                if resp:
+                    parts.append(f"### Response\n{resp}")
+                out.append("\n\n".join(parts) if parts else "")
+            return {target_col: out}
 
-        dataset = dataset.map(compose, remove_columns=[])
+        dataset = dataset.map(compose_batch, batched=True, batch_size=1000, num_proc=1)
         # If the configured text column was not 'text', still ensure Trainer sees it
         return dataset
 

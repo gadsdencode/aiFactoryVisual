@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 from transformers import TrainingArguments
+import torch
+from transformers import DataCollatorForLanguageModeling
 from trl import SFTTrainer, SFTConfig
 from backend.config import AppConfig
 from backend.huggingface_integration import hf_login, push_to_hub
@@ -88,7 +90,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
             report_to=config.training.report_to,
             remove_unused_columns=False,
             dataloader_num_workers=0,
-            dataloader_pin_memory=True,
+            dataloader_pin_memory=False,
             dataloader_persistent_workers=False,
             logging_first_step=True,
         )
@@ -139,12 +141,23 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         # Early log to indicate tokenization/preparation can take time
         log_queue.put("Preparing/tokenizing datasets (this can take a few minutes on first run)...")
 
+        # Stable single-thread CPU to avoid Windows deadlocks
+        try:
+            torch.set_num_threads(1)
+            os.environ.setdefault('OMP_NUM_THREADS', '1')
+            os.environ.setdefault('MKL_NUM_THREADS', '1')
+        except Exception:
+            pass
+
+        data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
         trainer = SFTTrainer(
             model=model,
             train_dataset=dataset,
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
             args=sft_config,
+            data_collator=data_collator,
             compute_metrics=compute_token_accuracy if eval_dataset is not None and getattr(config.training, 'evaluation_strategy', 'no') != 'no' else None,
             callbacks=[streamlit_callback],
         )
