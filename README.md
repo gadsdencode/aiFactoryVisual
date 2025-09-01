@@ -1,4 +1,22 @@
-AI Factory Visual 🏭🤖AI Factory Visual is a web-based application designed to simplify the process of fine-tuning Hugging Face Transformer models. It provides an intuitive user interface to configure training parameters, select models and datasets, monitor training progress in real-time, and compare the performance of different models.This tool is built for both beginners and experts in machine learning who want to experiment with fine-tuning without writing extensive boilerplate code.✨ FeaturesInteractive UI: A user-friendly interface built with Streamlit to manage the entire fine-tuning workflow.Easy Configuration: Set up your training runs by selecting pre-trained models, datasets from the Hugging Face Hub, and tuning hyperparameters through simple widgets.Real-time Monitoring: A live dashboard to track key metrics like training/validation loss and accuracy during the fine-tuning process.Model Comparison: Visualize and compare the performance of different fine-tuned models to easily identify the best-performing one.Hugging Face Hub Integration: Automatically download models and datasets, and optionally push your fine-tuned models back to the Hub.🛠️ Tech StackFrontend: StreamlitBackend: PythonML/AI: Hugging Face Transformers, PyTorch, Accelerate, DatasetsPlotting: Altair📂 Project Structure.
+AI Factory Visual 🏭
+
+🤖AI Factory Visual is a web-based application designed to simplify the process of fine-tuning Hugging Face Transformer models. It provides an intuitive user interface to configure training parameters, select models and datasets, monitor training progress in real-time, and compare the performance of different models.This tool is built for both beginners and experts in machine learning who want to experiment with fine-tuning without writing extensive boilerplate code.
+
+✨ Features
+
+Interactive UI: A user-friendly interface built with Streamlit to manage the entire fine-tuning workflow.
+
+Easy Configuration: Set up your training runs by selecting pre-trained models, datasets from the Hugging Face Hub, and tuning hyperparameters through simple widgets.
+
+Real-time Monitoring: A live dashboard to track key metrics like training/validation loss and accuracy during the fine-tuning process.
+
+Model Comparison: Visualize and compare the performance of different fine-tuned models to easily identify the best-performing one.
+
+Hugging Face Hub Integration: Automatically download models and datasets, and optionally push your fine-tuned models back to the Hub.
+
+🛠️ Tech StackFrontend: StreamlitBackend: PythonML/AI: Hugging Face Transformers, PyTorch, Accelerate, DatasetsPlotting: Altair
+
+📂 Project Structure.
 
 ├── app.py                      # Main Streamlit application file
 ├── backend/                    # Core logic for model training and management
