@@ -3,7 +3,7 @@ import pandas as pd
 import time
 from backend.training_manager import TrainingManager
 from components.configuration import render_configuration
-from components.training_dashboard import render_training_dashboard
+from components.training_dashboard import render_training_dashboard, display_training_dashboard
 from components.model_comparison import render_model_comparison
 from utils.styles import load_css
 
@@ -72,7 +72,7 @@ def main():
 
     # --- Main Content Area (Single Page Renderer) ---
     if page == "📊 Training Dashboard":
-        render_training_dashboard()
+        display_training_dashboard()
     elif page == "⚙️ Configuration":
         render_configuration()
     elif page == "⚖️ Model Comparison":
@@ -81,8 +81,8 @@ def main():
     # --- Live Update Logic (Dashboard-only; periodic gentle refresh while active) ---
     if 'training_manager' in st.session_state and page == "📊 Training Dashboard":
         manager = st.session_state.training_manager
-        status = manager.get_status() if hasattr(manager, 'get_status') else {"active": False}
-        if status.get('active', False):
+        status_snapshot = manager.get_status_snapshot() if hasattr(manager, 'get_status_snapshot') else {"active": False}
+        if status_snapshot.get('active', False):
             # Periodic refresh independent of queues to ensure UI keeps up
             import time
             now = time.time()

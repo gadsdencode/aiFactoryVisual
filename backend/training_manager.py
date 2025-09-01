@@ -4,6 +4,7 @@ import queue
 import pandas as pd
 import yaml
 from types import SimpleNamespace
+from typing import Any, Dict, List
 
 from backend.config import load_config, AppConfig
 from backend.data import load_and_prepare_dataset, load_validation_dataset
@@ -38,53 +39,59 @@ class TrainingManager:
         self._cached_config = None
         self._app_config: AppConfig | None = None
         self._lock: Lock = Lock()
+        # Lifecycle + async state
+        self.status: str = "NOT_STARTED"
+        self.logs: List[str] = []
+        self.metrics_history: List[Dict[str, Any]] = []
+        self.final_metrics: Dict[str, Any] = {}
 
     def start_training(self):
         """
-        Initializes and starts the training process in a separate thread.
+        Start the training in a background thread using the internal target.
         """
-        if self.is_training:
+        if self.get_status() == "RUNNING":
             st.warning("Training is already in progress.")
             return False
 
+        # Clear previous session logs/metrics
+        with self._lock:
+            self.logs.clear()
+            self.metrics_history.clear()
+            self.final_metrics = {}
+
+        self.stop_event = Event()
+        self.training_thread = Thread(target=self._training_thread_target, daemon=True)
+        self.training_thread.start()
+        st.success("Training process started in the background.")
+        st.session_state.training_started = True
+        return True
+
+    def _training_thread_target(self):
+        """Background worker that performs training and updates state."""
         try:
+            with self._lock:
+                self.status = "RUNNING"
+                self.is_training = True
+
             # Load configurations and data
             config = self._get_app_config()
-            # sync basic progress constraints
             try:
                 with self._lock:
-                    self.max_epochs = int(config.training.num_train_epochs)
+                    self.max_epochs = int(getattr(config.training, 'num_train_epochs', 1) or 1)
             except Exception:
                 with self._lock:
                     self.max_epochs = 1
             dataset = load_and_prepare_dataset(config)
             eval_dataset = load_validation_dataset(config)
             if dataset is None:
-                st.error("Dataset loading failed. Aborting training.")
-                return False
-                
+                raise RuntimeError("Dataset loading failed.")
+
             model, tokenizer = setup_model_and_tokenizer(config)
             if model is None or tokenizer is None:
-                st.error("Model setup failed. Aborting training.")
-                return False
+                raise RuntimeError("Model setup failed.")
 
-            # Start training in a background thread
-            with self._lock:
-                self.is_training = True
-            # create a stop signal for the background trainer
-            self.stop_event = Event()
-            self.training_thread = Thread(
-                target=run_training_in_thread,
-                args=(config, model, tokenizer, dataset, eval_dataset, self.log_queue, self.metrics_queue, self.stop_event)
-            )
-            self.training_thread.daemon = True
-            self.training_thread.start()
-            
-            st.success("Training process started in the background.")
-            st.session_state.training_started = True
-            # Initialize progress metadata heuristics
+            # Heuristic step totals
             try:
-                # Approximate steps per epoch using dataset size and batch size (ignores grad_accum)
                 per_device_bs = int(getattr(config.training, 'per_device_train_batch_size', 1) or 1)
                 steps_per_epoch = max(1, int((len(dataset) + per_device_bs - 1) / per_device_bs))
                 max_epochs = int(getattr(config.training, 'num_train_epochs', 1) or 1)
@@ -95,13 +102,29 @@ class TrainingManager:
                 with self._lock:
                     self.steps_per_epoch = None
                     self.total_steps = None
-            return True
+
+            self.add_log("--- Training starting ---")
+
+            # Run training using the shared trainer entrypoint with manager callbacks
+            success, final_eval = run_training_in_thread(
+                config, model, tokenizer, dataset, eval_dataset,
+                log_queue=None, metrics_queue=None, stop_event=self.stop_event, manager=self
+            )
+
+            with self._lock:
+                self.final_metrics = final_eval or {}
+                self.status = "COMPLETED" if success else "FAILED"
+                self.is_training = False
+            if success:
+                self.add_log("--- Training completed successfully ---")
+            else:
+                self.add_log("--- Training finished with errors ---")
 
         except Exception as e:
-            st.error(f"Failed to start training: {e}")
-            self.is_training = False
-            st.session_state.training_started = False
-            return False
+            with self._lock:
+                self.status = "FAILED"
+                self.is_training = False
+            self.add_log(f"--- TRAINING ERROR ---\n{e}")
 
     def stop_training(self):
         """
@@ -117,7 +140,7 @@ class TrainingManager:
         # Signal the background thread to request a graceful stop at the next step boundary
         if self.stop_event is not None:
             self.stop_event.set()
-        self.log_queue.put("--- Stop request received. Trainer will stop at the next step. ---")
+        self.add_log("--- Stop request received. Trainer will stop at the next step. ---")
         st.info("Training will stop after the current epoch/step. The thread cannot be forcefully terminated.")
         return True
 
@@ -138,6 +161,10 @@ class TrainingManager:
             self.current_epoch = 0
             self.progress = 0.0
             self.training_data = pd.DataFrame(columns=self.training_data.columns)
+            self.logs.clear()
+            self.metrics_history.clear()
+            self.final_metrics = {}
+            self.status = "NOT_STARTED"
         with self.log_queue.mutex:
             self.log_queue.queue.clear()
         with self.metrics_queue.mutex:
@@ -145,32 +172,82 @@ class TrainingManager:
         # clear stop signal
         self.stop_event = None
 
+    # ---- Public thread-safe helpers for callback ----
+    def add_log(self, message: str):
+        with self._lock:
+            self.logs.append(str(message))
 
-    def get_logs(self):
-        """
-        Retrieves all available logs from the queue.
-        """
-        logs = []
+    def add_metrics(self, metrics: Dict[str, Any]):
+        # Store raw metrics history
+        try:
+            step = metrics.get('step')
+            epoch = metrics.get('epoch')
+            train_loss = metrics.get('train_loss', metrics.get('loss'))
+            entry = {
+                'step': step,
+                'epoch': epoch,
+                'train_loss': train_loss,
+                'val_loss': metrics.get('val_loss'),
+                'train_accuracy': metrics.get('train_accuracy'),
+                'val_accuracy': metrics.get('val_accuracy'),
+                'learning_rate': metrics.get('learning_rate'),
+                'grad_norm': metrics.get('grad_norm'),
+                'timestamp': pd.Timestamp.utcnow(),
+            }
+        except Exception:
+            entry = {'timestamp': pd.Timestamp.utcnow()}
+        with self._lock:
+            self.metrics_history.append(entry)
+
+    def get_status(self) -> str:
+        with self._lock:
+            return self.status
+
+    def get_logs(self) -> str:
+        with self._lock:
+            return "\n".join(self.logs[-1000:])  # cap to recent logs
+
+    def get_metrics_df(self) -> pd.DataFrame:
+        with self._lock:
+            if not self.metrics_history:
+                return pd.DataFrame(columns=['step','epoch','train_loss','val_loss','train_accuracy','val_accuracy','learning_rate','grad_norm','timestamp'])
+            df = pd.DataFrame(self.metrics_history)
+        # Maintain original training_data as a fuller store for charts
+        try:
+            expected_cols = [
+                'step','epoch','train_loss','val_loss','train_accuracy','val_accuracy','learning_rate','grad_norm','timestamp'
+            ]
+            df = df.reindex(columns=expected_cols)
+        except Exception:
+            pass
+        with self._lock:
+            try:
+                self.training_data = pd.concat([self.training_data, df]).reset_index(drop=True)
+            except Exception:
+                pass
+        return df
+
+
+    # Legacy queue-based methods retained for backward compatibility
+    def _drain_legacy_queues_into_state(self):
+        # Drain log queue
         while not self.log_queue.empty():
-            log_entry = self.log_queue.get()
-            if log_entry is None: # End signal
+            entry = self.log_queue.get()
+            if entry is None:
                 with self._lock:
                     self.is_training = False
-                st.session_state.training_started = False
+                    self.status = "COMPLETED"
                 break
-            # Accept dict META messages and convert to simple string, also update manager state
-            try:
-                if isinstance(log_entry, dict) and log_entry.get('meta') == 'progress':
-                    if 'total_steps' in log_entry:
-                        # Authoritative total steps from trainer; override heuristics
+            if isinstance(entry, dict) and entry.get('meta') == 'progress':
+                try:
+                    if 'total_steps' in entry:
                         with self._lock:
-                            self.total_steps = int(log_entry['total_steps'])
-                    logs.append(f"[META] total_steps={log_entry.get('total_steps')} log_int={log_entry.get('logging_steps')}")
-                else:
-                    logs.append(log_entry)
-            except Exception:
-                logs.append(str(log_entry))
-        return logs
+                            self.total_steps = int(entry['total_steps'])
+                    self.add_log(f"[META] total_steps={entry.get('total_steps')} log_int={entry.get('logging_steps')}")
+                except Exception:
+                    pass
+            else:
+                self.add_log(str(entry))
 
     def get_metrics(self):
         """
@@ -214,13 +291,18 @@ class TrainingManager:
             return pd.DataFrame(columns=expected_cols)
 
         out = pd.concat(standardized_frames, ignore_index=True)
+        # also mirror into new metrics history
+        try:
+            for _, row in out.iterrows():
+                self.add_metrics(row.to_dict())
+        except Exception:
+            pass
         return out
 
-    def get_status(self):
-        """
-        Returns a dict the dashboard expects.
-        """
+    def get_status_snapshot(self):
+        """Return a detailed status snapshot for rich dashboards (legacy compat)."""
         # incorporate any newly arrived metrics into the cached training_data
+        self._drain_legacy_queues_into_state()
         new_metrics = self.get_metrics()
         if not new_metrics.empty:
             with self._lock:

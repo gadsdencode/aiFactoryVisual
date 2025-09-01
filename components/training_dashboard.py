@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+import time
 from utils.chart_themes import apply_chart_theme, get_chart_theme
 from backend.training_manager import get_training_manager
 
@@ -50,7 +51,7 @@ def render_training_dashboard():
     with col2:
         if st.button("⏸️ Pause Training", width='stretch'):
             if training_manager.pause_training():
-                status = training_manager.get_status()
+                status = training_manager.get_status_snapshot()
                 if status['paused']:
                     st.warning("Training paused!")
                 else:
@@ -73,7 +74,7 @@ def render_training_dashboard():
     st.markdown("---")
     
     # Get current training status
-    status = training_manager.get_status()
+    status = training_manager.get_status_snapshot()
     training_data = status['training_data']
 
     # Overview section with gauge + KPIs
@@ -325,18 +326,9 @@ def render_training_dashboard():
         else:
             st.info("No step data yet.")
     with tab_logs:
-        logs = training_manager.get_logs()
-        if logs:
-            # filter very long setup lines into a collapsible section
-            debug_patterns = ("Using optimizer:", "Resolved hparams", "Derived steps_per_epoch", "Batch shapes:")
-            debug = [ln for ln in logs if any(p in ln for p in debug_patterns)]
-            main_logs = [ln for ln in logs if ln not in debug]
-            for line in main_logs[-60:]:
-                st.text(line)
-            if debug:
-                with st.expander("Setup/Debug details"):
-                    for line in debug[-40:]:
-                        st.text(line)
+        logs_text = training_manager.get_logs()
+        if logs_text:
+            st.text_area("Logs", logs_text, height=220, key="logs_tab_textarea")
         else:
             st.info("No logs yet.")
 
@@ -346,3 +338,81 @@ def training_dashboard():
     Backwards-compatible alias used by app.py.
     """
     return render_training_dashboard()
+
+
+def display_training_dashboard():
+    """
+    New live-polling dashboard using placeholders and manager methods.
+    """
+    st.title("🚀 Training Dashboard (Live)")
+    manager = get_training_manager()
+
+    # Placeholders for dynamic sections
+    status_placeholder = st.empty()
+    metrics_container = st.container()
+    log_placeholder = st.empty()
+
+    # Simple controls
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("▶️ Start Training", type="primary"):
+            manager.start_training()
+    with col2:
+        if st.button("⏹️ Stop Training"):
+            manager.stop_training()
+
+    # Poll while running
+    while manager.get_status() == "RUNNING":
+        with status_placeholder:
+            st.status("Training in progress...", state="running")
+
+        df = manager.get_metrics_df()
+        logs_text = manager.get_logs()
+
+        with metrics_container:
+            st.subheader("Live Metrics")
+            if not df.empty:
+                # KPIs
+                k1, k2, k3 = st.columns(3)
+                with k1:
+                    v = df['train_loss'].dropna().iloc[-1] if 'train_loss' in df.columns and df['train_loss'].notna().any() else None
+                    st.metric("Loss", f"{v:.4f}" if v is not None else "-")
+                with k2:
+                    lr = df['learning_rate'].dropna().iloc[-1] if 'learning_rate' in df.columns and df['learning_rate'].notna().any() else None
+                    st.metric("LR", f"{lr:.6f}" if lr is not None else "-")
+                with k3:
+                    ep = df['epoch'].dropna().iloc[-1] if 'epoch' in df.columns and df['epoch'].notna().any() else None
+                    st.metric("Epoch", f"{ep:.2f}" if ep is not None else "-")
+
+                # Chart
+                plot_df = df.copy()
+                if 'step' in plot_df.columns and 'train_loss' in plot_df.columns:
+                    plot_df = plot_df.dropna(subset=['step']).set_index('step')
+                    st.line_chart(plot_df[['train_loss']].fillna(method='ffill'))
+            else:
+                st.info("Awaiting first metrics...")
+
+        with log_placeholder:
+            st.text_area("Logs", logs_text or "", height=220, key="logs_live_textarea")
+
+        time.sleep(5)
+
+    # Final state
+    final_status = manager.get_status()
+    if final_status == "COMPLETED":
+        status_placeholder.success("Training completed!")
+        try:
+            st.balloons()
+        except Exception:
+            pass
+    elif final_status == "FAILED":
+        status_placeholder.error("Training failed. Check logs below.")
+    else:
+        status_placeholder.info("Training is not running.")
+
+    # Final snapshot
+    final_df = manager.get_metrics_df()
+    if not final_df.empty and 'step' in final_df.columns and 'train_loss' in final_df.columns:
+        show_df = final_df.dropna(subset=['step']).set_index('step')
+        st.line_chart(show_df[['train_loss']].fillna(method='ffill'))
+    st.text_area("Final Logs", manager.get_logs() or "", height=240, key="logs_final_textarea")

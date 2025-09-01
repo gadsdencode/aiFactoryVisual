@@ -16,6 +16,52 @@ from threading import Thread, Event
 import queue
 from transformers import TrainerCallback, TrainingArguments
 
+class TrainingProgressCallback(TrainerCallback):
+    """Callback that forwards logs/metrics to a TrainingManager instance."""
+    def __init__(self, manager):
+        self.manager = manager
+
+    def on_log(self, args: TrainingArguments, state, control, logs=None, **kwargs):
+        try:
+            if logs and getattr(state, 'is_world_process_zero', True):
+                step = int(getattr(state, 'global_step', logs.get('step', 0)) or 0)
+                metrics = {
+                    'step': step,
+                    'epoch': logs.get('epoch'),
+                    'train_loss': logs.get('loss'),
+                    'val_loss': logs.get('eval_loss'),
+                    'val_accuracy': logs.get('eval_accuracy'),
+                    'learning_rate': logs.get('learning_rate'),
+                    'grad_norm': logs.get('grad_norm'),
+                }
+                metrics = {k: v for k, v in metrics.items() if v is not None}
+                self.manager.add_metrics(metrics)
+                # concise human log
+                parts = [f"step={step}"]
+                if 'epoch' in metrics:
+                    try:
+                        parts.append(f"epoch={float(metrics['epoch']):.2f}")
+                    except Exception:
+                        parts.append(f"epoch={metrics['epoch']}")
+                if 'train_loss' in metrics:
+                    try:
+                        parts.append(f"loss={float(metrics['train_loss']):.4f}")
+                    except Exception:
+                        parts.append(f"loss={metrics['train_loss']}")
+                if 'val_loss' in metrics:
+                    try:
+                        parts.append(f"val_loss={float(metrics['val_loss']):.4f}")
+                    except Exception:
+                        parts.append(f"val_loss={metrics['val_loss']}")
+                if 'learning_rate' in metrics:
+                    try:
+                        parts.append(f"lr={float(metrics['learning_rate']):.6f}")
+                    except Exception:
+                        parts.append(f"lr={metrics['learning_rate']}")
+                self.manager.add_log(" | ".join(parts))
+        except Exception:
+            pass
+
 class StreamlitCallback(TrainerCallback):
     """TrainerCallback that streams logs/metrics to Streamlit via queues and supports stopping."""
     def __init__(self, log_queue: queue.Queue, metrics_queue: queue.Queue, stop_event: "Event | None" = None):
@@ -99,11 +145,22 @@ class StreamlitCallback(TrainerCallback):
         self.log_queue.put("--- Training finished ---")
 
 
-def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_queue, metrics_queue, stop_event=None):
+def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_queue=None, metrics_queue=None, stop_event=None, manager=None):
     """
     This function runs the training process and is intended to be called in a separate thread.
     """
+    success = True
+    final_eval: dict | None = None
     try:
+        def _emit_log(message: str):
+            try:
+                if manager is not None:
+                    manager.add_log(str(message))
+                elif log_queue is not None:
+                    log_queue.put(message)
+            except Exception:
+                pass
+
         # --- Hugging Face Login ---
         if config.huggingface.push_to_hub:
             hf_login(config.huggingface.hub_token)
@@ -165,8 +222,8 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         except Exception:
             max_steps_val = -1
 
-        log_queue.put(f"Using optimizer: {chosen_optim}; lr: {lr_val}")
-        log_queue.put(
+        _emit_log(f"Using optimizer: {chosen_optim}; lr: {lr_val}")
+        _emit_log(
             f"Resolved hparams -> epochs:{num_train_epochs_val}, per_device_bs:{per_device_bs_val}, "
             f"grad_accum:{grad_accum_val}, warmup_ratio:{warmup_ratio_val}, weight_decay:{weight_decay_val}, "
             f"max_grad_norm:{max_grad_norm_val}, logging_steps:{logging_steps_val}, save_steps:{save_steps_val}"
@@ -186,7 +243,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
             final_max_steps = derived_total_steps
         else:
             final_max_steps = int(max_steps_val)
-        log_queue.put(f"Derived steps_per_epoch={steps_per_epoch}, opt_steps_per_epoch={opt_steps_per_epoch}, total_steps={derived_total_steps}, using max_steps={final_max_steps}")
+        _emit_log(f"Derived steps_per_epoch={steps_per_epoch}, opt_steps_per_epoch={opt_steps_per_epoch}, total_steps={derived_total_steps}, using max_steps={final_max_steps}")
 
         # Consolidate training args into SFTConfig
         sft_max_seq_len = int(getattr(config.training, 'max_seq_length', 1024) or 1024)
@@ -221,7 +278,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         )
 
         # --- Initialize Trainer ---
-        streamlit_callback = StreamlitCallback(log_queue, metrics_queue, stop_event)
+        streamlit_callback = StreamlitCallback(metrics_queue if metrics_queue is not None else queue.Queue(), metrics_queue if metrics_queue is not None else queue.Queue(), stop_event)
 
         # Default max_seq_length when not provided
         max_seq_len = sft_max_seq_len
@@ -229,7 +286,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         # compute_token_accuracy imported from backend.metrics
 
         # Early log to indicate tokenization/preparation can take time
-        log_queue.put("Preparing/tokenizing datasets...")
+        _emit_log("Preparing/tokenizing datasets...")
 
         # Stable single-thread CPU to avoid Windows deadlocks
         try:
@@ -263,7 +320,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
                 os.environ["TOKENIZERS_PARALLELISM"] = "false"
             else:
                 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-            log_queue.put(f"Tokenization parallelism resolved: num_proc={desired_proc}, TOKENIZERS_PARALLELISM={os.environ.get('TOKENIZERS_PARALLELISM')}")
+            _emit_log(f"Tokenization parallelism resolved: num_proc={desired_proc}, TOKENIZERS_PARALLELISM={os.environ.get('TOKENIZERS_PARALLELISM')}")
         except Exception:
             pass
         try:
@@ -321,7 +378,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
             tokenizer=tokenizer,
         )
 
-        log_queue.put("Trainer initialized. Starting training loop...")
+        _emit_log("Trainer initialized. Starting training loop...")
         # Emit initial META with expected totals (mirrors TrainingManager heuristics)
         try:
             meta = {
@@ -329,13 +386,20 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
                 'total_steps': final_max_steps,
                 'logging_steps': logging_steps_val,
             }
-            log_queue.put(meta)
+            _emit_log(meta)
         except Exception:
             pass
 
         # --- Start Training ---
-        log_queue.put("--- Starting Training ---")
+        _emit_log("--- Starting Training ---")
         if stop_event is None:
+            # Choose callback based on manager/queues
+            if manager is not None:
+                callbacks = [TrainingProgressCallback(manager)]
+                try:
+                    trainer.callback_handler.callbacks = callbacks  # type: ignore[attr-defined]
+                except Exception:
+                    pass
             trainer.train()
         else:
             # Train with periodic stop checks; ensure scheduler has concrete total steps
@@ -343,6 +407,12 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
                 trainer.create_optimizer_and_scheduler(num_training_steps=final_max_steps)
             except Exception:
                 pass
+            if manager is not None:
+                callbacks = [TrainingProgressCallback(manager)]
+                try:
+                    trainer.callback_handler.callbacks = callbacks  # type: ignore[attr-defined]
+                except Exception:
+                    pass
             train_result = trainer.train(resume_from_checkpoint=None)
             # Built-in callbacks honor control.should_training_stop based on our StreamlitCallback
             if stop_event.is_set():
@@ -350,28 +420,47 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
                     trainer.control.should_training_stop = True
                 except Exception:
                     pass
-        log_queue.put("--- Training Finished ---")
+        _emit_log("--- Training Finished ---")
+
+        # --- Evaluate ---
+        try:
+            if tokenized_eval is not None:
+                final_eval = trainer.evaluate()
+                if isinstance(final_eval, dict):
+                    _emit_log(f"Final evaluation: {final_eval}")
+        except Exception:
+            pass
 
         # --- Save Model ---
         final_output_dir = os.path.join(config.training.output_dir, "final_model")
-        log_queue.put(f"Saving final model to {final_output_dir}")
+        _emit_log(f"Saving final model to {final_output_dir}")
         trainer.model.save_pretrained(final_output_dir)
         tokenizer.save_pretrained(final_output_dir)
-        log_queue.put("Model saved successfully.")
+        _emit_log("Model saved successfully.")
 
         # --- Push to Hub ---
         if config.huggingface.push_to_hub:
-            log_queue.put("Pushing model to Hugging Face Hub...")
+            _emit_log("Pushing model to Hugging Face Hub...")
             push_to_hub(config, model, tokenizer)
-            log_queue.put("Push to Hub complete.")
+            _emit_log("Push to Hub complete.")
             
     except Exception as e:
         try:
             import traceback
             tb = traceback.format_exc()
-            log_queue.put(f"--- TRAINING ERROR ---\n{tb}")
+            if manager is not None:
+                manager.add_log(f"--- TRAINING ERROR ---\n{tb}")
+            elif log_queue is not None:
+                log_queue.put(f"--- TRAINING ERROR ---\n{tb}")
         except Exception:
-            log_queue.put(f"--- TRAINING ERROR --- \n{e}")
+            if manager is not None:
+                manager.add_log(f"--- TRAINING ERROR --- \n{e}")
+            elif log_queue is not None:
+                log_queue.put(f"--- TRAINING ERROR --- \n{e}")
+        success = False
     finally:
-        log_queue.put(None) # Signal that training is complete
+        if manager is None and log_queue is not None:
+            log_queue.put(None) # Signal that training is complete
+
+    return success, (final_eval or {})
 
