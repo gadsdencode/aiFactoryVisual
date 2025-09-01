@@ -188,7 +188,7 @@ def run_dpo_training(
             args=training_args,
             beta=0.1, # DPO loss hyperparam
             train_dataset=dataset,
-            # The tokenizer argument is removed to fix the error
+            tokenizer=tokenizer,
         )
         
         # Train

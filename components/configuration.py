@@ -246,6 +246,9 @@ def render_configuration():
             lora_r_adv = st.number_input("LoRA Rank (r)", value=yaml_config.lora.r, min_value=1)
             lora_alpha_adv = st.number_input("LoRA Alpha", value=yaml_config.lora.alpha, min_value=1)
             lora_dropout_adv = st.number_input("LoRA Dropout", value=float(yaml_config.lora.dropout), min_value=0.0, max_value=0.9, step=0.05, format="%.2f")
+            grad_accum_adv = st.number_input("Gradient Accumulation Steps", value=int(getattr(yaml_config.training, 'gradient_accumulation_steps', 1)), min_value=1)
+            lora_targets_str_default = ",".join(getattr(yaml_config.lora, 'target_modules', []) or [])
+            lora_target_modules_adv = st.text_input("LoRA Target Modules (comma-separated)", value=lora_targets_str_default, help="Leave empty to keep current; comma-separated module names like q_proj,k_proj,v_proj,o_proj")
     
     with st.expander("📝 Logging Configuration"):
         logging_steps_adv = st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, min_value=1)
@@ -278,10 +281,12 @@ def render_configuration():
                 'adv_lora_r': int(lora_r_adv),
                 'adv_lora_alpha': int(lora_alpha_adv),
                 'adv_lora_dropout': float(lora_dropout_adv),
+                'adv_lora_target_modules': lora_target_modules_adv,
                 'adv_logging_steps': int(logging_steps_adv),
                 'adv_save_steps': int(save_steps_adv),
                 'adv_report_to': report_to_adv,
                 'adv_gradient_checkpointing': bool(grad_ckpt_adv),
+                'adv_gradient_accumulation_steps': int(grad_accum_adv),
                 # Data source settings
                 'data_source': data_source,
                 'local_train_path': train_path if data_source == 'local' else None,

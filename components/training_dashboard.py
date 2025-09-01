@@ -51,6 +51,43 @@ def render_training_dashboard():
     # Get current training status
     status = training_manager.get_status()
     training_data = status['training_data']
+
+    # Overview section with gauge + KPIs
+    st.subheader("📌 Training Overview")
+    ov1, ov2 = st.columns([2, 3])
+    with ov1:
+        try:
+            prog = float(status.get('current_step', 0) / status.get('total_steps', 1)) if status.get('total_steps') else float(status['progress'])
+            expected = max(0.0, min(1.0, prog)) * 100.0
+            gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=expected,
+                number={"suffix": "%"},
+                gauge={"axis": {"range": [0, 100]}, "bar": {"color": get_chart_theme()['line_colors'][0]}}
+            ))
+            gauge.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10))
+            gauge = apply_chart_theme(gauge)
+            st.plotly_chart(gauge, use_container_width=True)
+        except Exception:
+            st.progress(status['progress'])
+    with ov2:
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            step = status.get('current_step')
+            total_steps = status.get('total_steps')
+            st.metric("Step", f"{step or 0}/{total_steps or '-'}")
+        with k2:
+            sps = status.get('steps_per_second')
+            st.metric("Speed", f"{sps:.2f} steps/s" if sps else "-")
+        with k3:
+            eta = status.get('eta_seconds')
+            if eta:
+                import math
+                m, s = divmod(int(math.ceil(eta)), 60)
+                h, m = divmod(m, 60)
+                st.metric("ETA", f"{h:02d}:{m:02d}:{s:02d}")
+            else:
+                st.metric("ETA", "-")
     
     # Progress metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -71,7 +108,7 @@ def render_training_dashboard():
         st.metric(
             "Training Loss", 
             f"{current_loss:.4f}",
-            delta=f"{-0.001:.4f}" if status['active'] else None
+            delta=None
         )
     
     with col3:
@@ -87,17 +124,41 @@ def render_training_dashboard():
         )
     
     with col4:
-        st.metric(
-            "Progress", 
-            f"{status['progress']:.1%}",
-            delta=f"{1/status['max_epochs']:.3f}" if status['active'] else None
-        )
+        # Prefer step-based indicator if available
+        step = status.get('current_step')
+        total_steps = status.get('total_steps')
+        if step is not None and total_steps:
+            st.metric("Progress", f"{(step/total_steps):.1%}")
+        else:
+            st.metric("Progress", f"{status['progress']:.1%}")
     
-    # Progress bar
-    st.progress(status['progress'])
+    # Progress bar (step-based if possible)
+    if status.get('current_step') is not None and status.get('total_steps'):
+        st.progress(min(1.0, float(status['current_step'])/float(status['total_steps'])))
+    else:
+        st.progress(status['progress'])
     
     st.markdown("---")
     
+    # KPIs row 2: Steps/sec and ETA
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        sps = status.get('steps_per_second')
+        st.metric("Speed", f"{sps:.2f} steps/s" if sps else "-")
+    with k2:
+        eta = status.get('eta_seconds')
+        if eta:
+            # pretty ETA
+            import math
+            m, s = divmod(int(math.ceil(eta)), 60)
+            h, m = divmod(m, 60)
+            pretty = f"{h:02d}:{m:02d}:{s:02d}"
+            st.metric("ETA", pretty)
+        else:
+            st.metric("ETA", "-")
+    with k3:
+        st.metric("Total Steps", str(status.get('total_steps') or '-'))
+
     # Charts
     col1, col2 = st.columns(2)
     
@@ -176,7 +237,7 @@ def render_training_dashboard():
         
         st.plotly_chart(fig_acc, use_container_width=True)
     
-    # Learning rate schedule
+    # Learning rate schedule & Grad Norm
     st.subheader("📊 Learning Rate Schedule")
     
     fig_lr = go.Figure()
@@ -203,39 +264,69 @@ def render_training_dashboard():
     fig_lr = apply_chart_theme(fig_lr)
     
     st.plotly_chart(fig_lr, use_container_width=True)
-    
-    # Training logs
-    st.subheader("📝 Training Logs")
-    
-    if status['active'] and not status['paused']:
-        st.info(f"🔄 Epoch {status['current_epoch']}: Training in progress...")
-    elif status['paused']:
-        st.warning(f"⏸️ Epoch {status['current_epoch']}: Training paused")
-    elif status['current_epoch'] > 0:
-        st.success(f"✅ Last completed epoch: {status['current_epoch']}")
-    else:
-        st.info("⏳ Training not started yet")
-    
-    # Display recent training data
-    if not training_data.empty:
-        display_data = training_data.tail(10).copy()
-        # Format columns for better display
-        if 'timestamp' in display_data.columns:
-            display_data['timestamp'] = display_data['timestamp'].dt.strftime('%H:%M:%S')
-        st.dataframe(
-            display_data,
-            use_container_width=True
-        )
 
-    # Stream live log lines
-    logs = training_manager.get_logs()
-    if logs:
-        for line in logs[-50:]:
-            st.text(line)
+    # Grad Norm chart (if available)
+    if not training_data.empty and 'grad_norm' in training_data.columns and training_data['grad_norm'].notna().any():
+        st.subheader("📐 Gradient Norm")
+        fig_g = go.Figure()
+        fig_g.add_trace(go.Scatter(
+            x=training_data['epoch'] if 'epoch' in training_data.columns else training_data.index,
+            y=training_data['grad_norm'],
+            mode='lines',
+            name='Grad Norm',
+            line=dict(color=theme['line_colors'][5 % len(theme['line_colors'])], width=3),
+        ))
+        fig_g.update_layout(title="Gradient Norm", xaxis_title="Epoch", yaxis_title="Norm", height=300, showlegend=False)
+        fig_g = apply_chart_theme(fig_g)
+        st.plotly_chart(fig_g, use_container_width=True)
+    
+    # Logs and recent steps in tabs for cleaner UX
+    st.subheader("🧭 Live View")
+    tab_overview, tab_steps, tab_logs = st.tabs(["Recent Metrics", "Recent Steps", "Logs"])
+    with tab_overview:
+        if status['active'] and not status['paused']:
+            st.info(f"🔄 Epoch {status['current_epoch']}: Training in progress...")
+        elif status['paused']:
+            st.warning(f"⏸️ Epoch {status['current_epoch']}: Training paused")
+        elif status['current_epoch'] > 0:
+            st.success(f"✅ Last completed epoch: {status['current_epoch']}")
+        else:
+            st.info("⏳ Training not started yet")
+        # Small table of last few metrics
+        if not training_data.empty:
+            cols = [c for c in ['step','epoch','train_loss','val_loss','grad_norm','learning_rate','timestamp'] if c in training_data.columns]
+            mini = training_data[cols].tail(8).copy()
+            if 'timestamp' in mini.columns:
+                mini['timestamp'] = mini['timestamp'].dt.strftime('%H:%M:%S')
+            st.dataframe(mini, use_container_width=True)
+    with tab_steps:
+        if not training_data.empty:
+            cols = [c for c in ['step','epoch','train_loss','val_loss','grad_norm','learning_rate','timestamp'] if c in training_data.columns]
+            table = training_data[cols].tail(50).copy()
+            if 'timestamp' in table.columns:
+                table['timestamp'] = table['timestamp'].dt.strftime('%H:%M:%S')
+            st.dataframe(table, use_container_width=True)
+        else:
+            st.info("No step data yet.")
+    with tab_logs:
+        logs = training_manager.get_logs()
+        if logs:
+            # filter very long setup lines into a collapsible section
+            debug_patterns = ("Using optimizer:", "Resolved hparams", "Derived steps_per_epoch", "Batch shapes:")
+            debug = [ln for ln in logs if any(p in ln for p in debug_patterns)]
+            main_logs = [ln for ln in logs if ln not in debug]
+            for line in main_logs[-60:]:
+                st.text(line)
+            if debug:
+                with st.expander("Setup/Debug details"):
+                    for line in debug[-40:]:
+                        st.text(line)
+        else:
+            st.info("No logs yet.")
 
 
-def training_dashboard(log_placeholder=None, metrics_placeholder=None):
+def training_dashboard():
     """
-    Backwards-compatible alias used by app.py; placeholders are currently unused.
+    Backwards-compatible alias used by app.py.
     """
     return render_training_dashboard()

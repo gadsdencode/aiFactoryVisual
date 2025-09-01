@@ -4,6 +4,11 @@ from transformers import (
     AutoTokenizer,
 )
 from peft import LoraConfig, get_peft_model
+try:
+    # Prepare model for k-bit training (enables input requires_grad, upcasts layer norms, etc.)
+    from peft import prepare_model_for_kbit_training  # type: ignore
+except Exception:
+    prepare_model_for_kbit_training = None  # type: ignore
 from backend.config import AppConfig
 import streamlit as st
 
@@ -48,7 +53,12 @@ def setup_model_and_tokenizer(config: AppConfig):
         import torch
         use_cuda = torch.cuda.is_available()
         torch_dtype = torch.float16 if use_cuda else torch.float32
-        device_map = config.training.device_map if 'quantization_config' in quantization_kwargs else ({"": 0} if use_cuda else "cpu")
+        # For training with LoRA + 4-bit on Windows, avoid 'auto' dispatch which can offload to CPU
+        if 'quantization_config' in quantization_kwargs:
+            requested_map = getattr(config.training, 'device_map', 'auto')
+            device_map = ({"": 0} if use_cuda else "cpu") if (requested_map == 'auto') else requested_map
+        else:
+            device_map = {"": 0} if use_cuda else "cpu"
 
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
@@ -60,6 +70,28 @@ def setup_model_and_tokenizer(config: AppConfig):
         model.config.use_cache = False
         model.config.pretraining_tp = 1
         st.success("Base model loaded successfully.")
+
+        # Enable performance-friendly CUDA settings on Ampere (RTX 4070)
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = True  # type: ignore
+            torch.set_float32_matmul_precision("high")  # type: ignore
+            # Prefer SDPA mem-efficient attention on Windows (use non-deprecated APIs)
+            try:
+                # Global backend toggles (preferred; not a context manager)
+                torch.backends.cuda.enable_flash_sdp(False)  # type: ignore
+                torch.backends.cuda.enable_math_sdp(False)  # type: ignore
+                torch.backends.cuda.enable_mem_efficient_sdp(True)  # type: ignore
+            except Exception:
+                # Fallback to new context manager if available, else ignore
+                try:
+                    from torch.nn.attention import sdpa_kernel as _sdpa_kernel  # type: ignore
+                    # No-op context just to ensure compatibility; main benefit comes from backend toggles above
+                    with _sdpa_kernel(enable_flash=False, enable_math=False, enable_mem_efficient=True):  # type: ignore
+                        pass
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
         # --- Load Tokenizer ---
         st.info(f"Loading tokenizer for: {config.base_model}")
@@ -73,15 +105,51 @@ def setup_model_and_tokenizer(config: AppConfig):
                 pass
         st.success("Tokenizer loaded successfully.")
 
+        # Optionally prepare model for 4-bit training
+        try:
+            if prepare_model_for_kbit_training is not None and bool(getattr(config.quantization, 'load_in_4bit', False)):
+                model = prepare_model_for_kbit_training(model)
+                st.info("Prepared model for k-bit (4-bit) training.")
+        except Exception:
+            pass
+
         # --- LoRA Configuration ---
         st.info("Setting up LoRA configuration...")
+        # Determine target modules dynamically if not explicitly set
+        target_modules = getattr(config.lora, 'target_modules', None)
+        try:
+            if not target_modules:
+                model_type = str(getattr(model.config, 'model_type', '')).lower()
+                if model_type in ("llama", "mistral", "qwen", "qwen2", "gemma"):
+                    target_modules = [
+                        "q_proj", "k_proj", "v_proj", "o_proj",
+                        "gate_proj", "up_proj", "down_proj"
+                    ]
+                else:
+                    # Fallback: collect common linear projection names
+                    import torch.nn as nn  # type: ignore
+                    names = set()
+                    for name, module in model.named_modules():
+                        if isinstance(module, nn.Linear):
+                            leaf = name.rsplit('.', 1)[-1]
+                            if (leaf.endswith("proj") or leaf in ("in_proj", "out_proj", "fc1", "fc2")):
+                                names.add(leaf)
+                    target_modules = sorted(names) if names else ["q_proj", "k_proj", "v_proj", "o_proj"]
+        except Exception:
+            # Conservative fallback
+            if not target_modules:
+                target_modules = [
+                    "q_proj", "k_proj", "v_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj"
+                ]
+
         peft_config = LoraConfig(
             r=config.lora.r,
             lora_alpha=config.lora.alpha,
             lora_dropout=config.lora.dropout,
             bias=config.lora.bias,
             task_type=config.lora.task_type,
-            target_modules=config.lora.target_modules,
+            target_modules=target_modules,
         )
         
         # --- Apply PEFT to the model ---

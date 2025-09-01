@@ -24,6 +24,11 @@ class TrainingManager:
         self.current_epoch = 0
         self.progress = 0.0
         self.max_epochs = 1
+        self.total_steps: int | None = None
+        self.steps_per_epoch: int | None = None
+        self.last_step_time = None
+        self.last_step = None
+        self.smoothed_sps = None  # steps per second EMA
         self.training_data = pd.DataFrame(
             columns=[
                 'epoch', 'train_loss', 'val_loss', 'train_accuracy',
@@ -72,6 +77,16 @@ class TrainingManager:
             
             st.success("Training process started in the background.")
             st.session_state.training_started = True
+            # Initialize progress metadata heuristics
+            try:
+                # Approximate steps per epoch using dataset size and batch size (ignores grad_accum)
+                per_device_bs = int(getattr(config.training, 'per_device_train_batch_size', 1) or 1)
+                self.steps_per_epoch = max(1, int((len(dataset) + per_device_bs - 1) / per_device_bs))
+                max_epochs = int(getattr(config.training, 'num_train_epochs', 1) or 1)
+                self.total_steps = max(1, self.steps_per_epoch * max(1, max_epochs))
+            except Exception:
+                self.steps_per_epoch = None
+                self.total_steps = None
             return True
 
         except Exception as e:
@@ -133,7 +148,16 @@ class TrainingManager:
                 self.is_training = False
                 st.session_state.training_started = False
                 break
-            logs.append(log_entry)
+            # Accept dict META messages and convert to simple string, also update manager state
+            try:
+                if isinstance(log_entry, dict) and log_entry.get('meta') == 'progress':
+                    if 'total_steps' in log_entry and (self.total_steps is None or self.total_steps <= 0):
+                        self.total_steps = int(log_entry['total_steps'])
+                    logs.append(f"[META] total_steps={log_entry.get('total_steps')} log_int={log_entry.get('logging_steps')}")
+                else:
+                    logs.append(log_entry)
+            except Exception:
+                logs.append(str(log_entry))
         return logs
 
     def get_metrics(self):
@@ -162,6 +186,7 @@ class TrainingManager:
             normalized['train_accuracy'] = df.get('train_accuracy')
             normalized['val_accuracy'] = df.get('val_accuracy')
             normalized['learning_rate'] = df.get('learning_rate')
+            normalized['grad_norm'] = df.get('grad_norm')
             normalized['timestamp'] = pd.Timestamp.utcnow()
 
             # Ensure column order and presence
@@ -188,10 +213,40 @@ class TrainingManager:
                     self.current_epoch = int(new_metrics['epoch'].dropna().iloc[-1])
                 except Exception:
                     pass
-            if self.max_epochs > 0:
+            # Step-based progress tracking
+            try:
+                latest_step = int(new_metrics['step'].dropna().iloc[-1]) if 'step' in new_metrics.columns else None
+            except Exception:
+                latest_step = None
+            if latest_step is not None and latest_step >= 0:
+                # Steps/sec estimate using simple EMA to stabilize
+                import time
+                now = time.time()
+                if self.last_step is not None and self.last_step_time is not None and latest_step > self.last_step:
+                    dt = max(1e-3, now - self.last_step_time)
+                    dstep = latest_step - self.last_step
+                    inst_sps = dstep / dt
+                    if self.smoothed_sps is None:
+                        self.smoothed_sps = inst_sps
+                    else:
+                        self.smoothed_sps = 0.8 * self.smoothed_sps + 0.2 * inst_sps
+                self.last_step = latest_step
+                self.last_step_time = now
+                # Progress from steps if total known, else epoch fraction
+                if self.total_steps:
+                    self.progress = min(1.0, float(latest_step) / float(self.total_steps))
+                elif self.max_epochs > 0:
+                    self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
+            elif self.max_epochs > 0:
                 self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
 
         thread_alive = bool(self.training_thread and self.training_thread.is_alive())
+        # Compute ETA in seconds if we have speed and remaining steps
+        eta_seconds = None
+        if self.smoothed_sps and self.smoothed_sps > 0 and self.total_steps and self.last_step is not None:
+            remaining = max(0, self.total_steps - self.last_step)
+            eta_seconds = remaining / self.smoothed_sps
+
         return {
             'active': bool(self.is_training or thread_alive),
             'paused': self.paused,
@@ -199,6 +254,10 @@ class TrainingManager:
             'progress': float(self.progress),
             'max_epochs': int(self.max_epochs),
             'training_data': self.training_data.copy(),
+            'total_steps': int(self.total_steps) if self.total_steps else None,
+            'current_step': int(self.last_step) if self.last_step is not None else None,
+            'steps_per_second': float(self.smoothed_sps) if self.smoothed_sps is not None else None,
+            'eta_seconds': float(eta_seconds) if eta_seconds is not None else None,
         }
 
     def get_yaml_config(self):
@@ -340,6 +399,8 @@ class TrainingManager:
             training['evaluation_strategy'] = str(new_config['adv_evaluation_strategy'])
         if 'adv_eval_steps' in new_config and new_config['adv_eval_steps']:
             training['eval_steps'] = int(new_config['adv_eval_steps'])
+        if 'adv_gradient_accumulation_steps' in new_config and new_config['adv_gradient_accumulation_steps']:
+            training['gradient_accumulation_steps'] = int(new_config['adv_gradient_accumulation_steps'])
 
         # base model is stored at top-level key 'base_model'
         if 'model_name' in new_config and new_config['model_name']:
@@ -373,6 +434,11 @@ class TrainingManager:
             lora['alpha'] = int(new_config['adv_lora_alpha'])
         if 'adv_lora_dropout' in new_config and new_config['adv_lora_dropout'] is not None:
             lora['dropout'] = float(new_config['adv_lora_dropout'])
+        if 'adv_lora_target_modules' in new_config:
+            raw = (new_config['adv_lora_target_modules'] or '').strip()
+            if raw:
+                # store as list of trimmed strings
+                lora['target_modules'] = [s.strip() for s in raw.split(',') if s.strip()]
 
         # optionally store HF token in session only
         if hf_token:

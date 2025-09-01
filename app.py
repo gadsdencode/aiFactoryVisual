@@ -59,6 +59,17 @@ def main():
         index=0,
     )
 
+    # --- Live Refresh Control (Dashboard only) ---
+    if page == "📊 Training Dashboard":
+        refresh_labels = ["Off", "0.5s", "1s", "2s", "5s"]
+        refresh_values = [0.0, 0.5, 1.0, 2.0, 5.0]
+        try:
+            default_idx = refresh_labels.index("1s")
+        except ValueError:
+            default_idx = 2
+        sel_label = st.sidebar.selectbox("Live Refresh", options=refresh_labels, index=default_idx, help="How often the dashboard refreshes while training")
+        st.session_state['_auto_refresh_interval'] = refresh_values[refresh_labels.index(sel_label)]
+
     # --- Main Content Area (Single Page Renderer) ---
     if page == "📊 Training Dashboard":
         render_training_dashboard()
@@ -67,32 +78,20 @@ def main():
     elif page == "⚖️ Model Comparison":
         render_model_comparison()
 
-    # --- Live Update Logic (if training is running) ---
-    # --- Live Update Logic (only on Dashboard when training is active) ---
+    # --- Live Update Logic (Dashboard-only; periodic gentle refresh while active) ---
     if 'training_manager' in st.session_state and page == "📊 Training Dashboard":
         manager = st.session_state.training_manager
         status = manager.get_status() if hasattr(manager, 'get_status') else {"active": False}
         if status.get('active', False):
-            new_logs = manager.get_logs()
-            if new_logs:
-                st.session_state.training_logs.extend(new_logs)
-
-            new_metrics = manager.get_metrics()
-            if not new_metrics.empty:
-                # Ensure consistent columns and drop dup steps
-                cols = [
-                    'step','epoch','train_loss','val_loss','train_accuracy','val_accuracy','learning_rate','timestamp'
-                ]
-                for c in cols:
-                    if c not in st.session_state.metrics_data.columns:
-                        st.session_state.metrics_data[c] = pd.Series(dtype='float64')
-                st.session_state.metrics_data = (
-                    pd.concat([st.session_state.metrics_data, new_metrics], ignore_index=True)
-                    .drop_duplicates(subset=['step'], keep='last')
-                )
-
-            time.sleep(5)
-            st.rerun()
+            # Periodic refresh independent of queues to ensure UI keeps up
+            import time
+            now = time.time()
+            last = st.session_state.get('_last_auto_refresh_ts', 0.0)
+            interval = float(st.session_state.get('_auto_refresh_interval', 1.0))
+            # Refresh only if interval is set (> 0)
+            if interval > 0.0 and (now - last) > interval:
+                st.session_state['_last_auto_refresh_ts'] = now
+                st.rerun()
 
 
 if __name__ == "__main__":

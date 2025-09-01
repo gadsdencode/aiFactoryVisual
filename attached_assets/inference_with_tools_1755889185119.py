@@ -21,6 +21,10 @@ from typing import List, Dict, Any, Optional
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 import torch
 from functools import lru_cache
+try:
+    import numexpr as _numexpr  # type: ignore
+except Exception:
+    _numexpr = None  # type: ignore
 
 # Set up verbose logging for traceability and debugging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -90,17 +94,26 @@ def search_web(query: str) -> str:
 @lru_cache(maxsize=1000)
 def calc_tool(query: str) -> str:
     """
-    Safe calculation using ast.parse and eval. Cached by query.
-    
-    Args:
-        query: Math expression string.
-    
-    Returns:
-        Result as string or error.
+    Safe calculation; prefers numexpr sandbox if available, else AST-validated eval. Cached by query.
     """
     if not query or not isinstance(query, str):
         raise ValueError("Invalid or missing 'query'")
-    
+    # Prefer numexpr if installed
+    if _numexpr is not None:
+        try:
+            result = _numexpr.evaluate(query)
+            try:
+                # Convert numpy scalar/array to string
+                import numpy as _np  # type: ignore
+                if isinstance(result, _np.ndarray):
+                    result = result.item() if result.size == 1 else result
+            except Exception:
+                pass
+            return str(result)
+        except Exception as e:
+            logger.error(f"numexpr evaluation error: {e}")
+            return f"Invalid calculation: {e}"
+    # Fallback to strict AST-validated eval
     try:
         tree = ast.parse(query, mode='eval')
         if not isinstance(tree.body, (ast.BinOp, ast.UnaryOp, ast.Compare, ast.Num)):
