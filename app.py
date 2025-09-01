@@ -50,7 +50,7 @@ def main():
         })
 
     # --- Sidebar Navigation ---
-    st.sidebar.image("attached_assets/image_1755891506297.png", use_container_width=True)
+    st.sidebar.image("attached_assets/image_1755891506297.png", width='stretch')
     st.sidebar.title("🏭 AI Factory LLM Trainer")
     st.sidebar.caption("Fine-tune, monitor, and compare LLMs with a modern UI.")
 

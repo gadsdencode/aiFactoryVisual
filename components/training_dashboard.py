@@ -44,13 +44,13 @@ def render_training_dashboard():
     # Global control bar at top
     ctrl1, ctrl2, ctrl3, ctrl4 = st.columns(4)
     with ctrl1:
-        if st.button("▶️ Start Training", type="primary", use_container_width=True):
+        if st.button("▶️ Start Training", type="primary", width='stretch'):
             if training_manager.start_training():
                 st.success("Training started!")
             else:
                 st.warning("Training is already active!")
     with ctrl2:
-        if st.button("⏸️ Pause/Resume", use_container_width=True):
+        if st.button("⏸️ Pause/Resume", width='stretch'):
             if training_manager.pause_training():
                 status = training_manager.get_status_snapshot()
                 if status['paused']:
@@ -60,13 +60,13 @@ def render_training_dashboard():
             else:
                 st.warning("No active training to pause/resume!")
     with ctrl3:
-        if st.button("⏹️ Stop Training", use_container_width=True):
+        if st.button("⏹️ Stop Training", width='stretch'):
             if training_manager.stop_training():
                 st.error("Training stopped!")
             else:
                 st.warning("No active training to stop!")
     with ctrl4:
-        if st.button("🔄 Reset", use_container_width=True):
+        if st.button("🔄 Reset", width='stretch'):
             training_manager.reset_training()
             st.info("Training reset!")
 
@@ -91,7 +91,7 @@ def render_training_dashboard():
             ))
             gauge.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10))
             gauge = apply_chart_theme(gauge)
-            st.plotly_chart(gauge, use_container_width=True)
+            st.plotly_chart(gauge, width='stretch')
         except Exception:
             st.progress(status['progress'])
     with ov2:
@@ -215,7 +215,7 @@ def render_training_dashboard():
                 hovermode='x unified'
             )
             fig_loss = apply_chart_theme(fig_loss)
-            st.plotly_chart(fig_loss, use_container_width=True)
+            st.plotly_chart(fig_loss, width='stretch')
         with col2:
             st.subheader("🎯 Accuracy Metrics")
             fig_acc = go.Figure()
@@ -236,7 +236,7 @@ def render_training_dashboard():
                 hovermode='x unified'
             )
             fig_acc = apply_chart_theme(fig_acc)
-            st.plotly_chart(fig_acc, use_container_width=True)
+            st.plotly_chart(fig_acc, width='stretch')
     
     # Learning rate schedule & Grad Norm
     with tabs[0]:
@@ -260,7 +260,7 @@ def render_training_dashboard():
             showlegend=False
         )
         fig_lr = apply_chart_theme(fig_lr)
-        st.plotly_chart(fig_lr, use_container_width=True)
+        st.plotly_chart(fig_lr, width='stretch')
 
     # Grad Norm chart (if available)
     with tabs[0]:
@@ -276,7 +276,7 @@ def render_training_dashboard():
             ))
             fig_g.update_layout(title="Gradient Norm", xaxis_title="Epoch", yaxis_title="Norm", height=300, showlegend=False)
             fig_g = apply_chart_theme(fig_g)
-            st.plotly_chart(fig_g, use_container_width=True)
+            st.plotly_chart(fig_g, width='stretch')
     
     # Logs and recent steps organized into the Logs tab
     with tabs[1]:
@@ -294,7 +294,7 @@ def render_training_dashboard():
             mini = training_data[cols].tail(8).copy()
             if 'timestamp' in mini.columns:
                 mini['timestamp'] = mini['timestamp'].dt.strftime('%H:%M:%S')
-            st.dataframe(mini, use_container_width=True)
+            st.dataframe(mini, width='stretch')
         logs_text = training_manager.get_logs()
         st.text_area("Logs", logs_text or "", height=220, key="logs_tab_textarea")
 
@@ -311,7 +311,7 @@ def render_training_dashboard():
         st.subheader("📦 Final Metrics Snapshot")
         df_final = training_manager.get_metrics_df()
         if not df_final.empty:
-            st.dataframe(df_final.tail(100), use_container_width=True)
+            st.dataframe(df_final.tail(100), width='stretch')
         else:
             st.info("No metrics captured yet.")
 

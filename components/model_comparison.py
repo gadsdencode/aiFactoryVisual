@@ -74,7 +74,7 @@ def render_model_comparison():
                 height=400
             )
             fig_bar = apply_chart_theme(fig_bar)
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, width='stretch')
         with col2:
             st.subheader("⚡ Efficiency Analysis")
             fig_scatter = go.Figure()
@@ -97,7 +97,7 @@ def render_model_comparison():
                 showlegend=False
             )
             fig_scatter = apply_chart_theme(fig_scatter)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width='stretch')
         st.subheader("📋 Detailed Comparison")
         comparison_df = filtered_data[['model_name', 'final_loss', 'final_accuracy', 
                                       'training_time', 'memory_usage', 'parameters']].copy()
@@ -107,7 +107,7 @@ def render_model_comparison():
         comparison_df['memory_usage'] = comparison_df['memory_usage'].round(1)
         comparison_df['parameters'] = comparison_df['parameters'].apply(lambda x: f"{x/1e9:.1f}B")
         comparison_df.columns = ['Model', 'Final Loss', 'Accuracy (%)', 'Training Time (h)', 'Memory (GB)', 'Parameters']
-        st.dataframe(comparison_df, use_container_width=True)
+        st.dataframe(comparison_df, width='stretch')
         st.subheader("🌡️ Performance Heatmap")
         heatmap_data = filtered_data[['model_name', 'final_loss', 'final_accuracy', 'training_time', 'memory_usage']].set_index('model_name')
         heatmap_normalized = heatmap_data.apply(lambda x: (x - x.min()) / (x.max() - x.min()))
@@ -120,7 +120,7 @@ def render_model_comparison():
         ))
         fig_heatmap.update_layout(title="Normalized Performance Metrics Heatmap", height=400)
         fig_heatmap = apply_chart_theme(fig_heatmap)
-        st.plotly_chart(fig_heatmap, use_container_width=True)
+        st.plotly_chart(fig_heatmap, width='stretch')
         st.subheader("🏅 Model Recommendations")
         col1, col2, col3 = st.columns(3)
         with col1:
