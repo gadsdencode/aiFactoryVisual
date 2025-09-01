@@ -59,11 +59,10 @@ python -m streamlit run app.py --server.port 5000
 
 model_config:
   default_model: "distilbert-base-uncased"
-  # Add other available models here
 
 dataset_config:
   default_dataset: "imdb"
-  # Add other available datasets here
+  
 🤝 Contributing
 
 Contributions are welcome! 
