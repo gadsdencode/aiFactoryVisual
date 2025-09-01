@@ -10,6 +10,7 @@ from trl import SFTTrainer
 from transformers import Trainer
 from backend.config import AppConfig
 from backend.huggingface_integration import hf_login, push_to_hub
+from backend.metrics import compute_token_accuracy
 import streamlit as st
 from threading import Thread
 import queue
@@ -225,25 +226,10 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         # Default max_seq_length when not provided
         max_seq_len = sft_max_seq_len
 
-        # Compute token-level accuracy over non-ignored labels (-100)
-        def compute_token_accuracy(eval_pred):
-            predictions = eval_pred.predictions
-            if isinstance(predictions, tuple):
-                predictions = predictions[0]
-            labels = eval_pred.label_ids
-            try:
-                # predictions: (batch, seq_len, vocab)
-                pred_ids = np.argmax(predictions, axis=-1)
-            except Exception:
-                return {}
-            mask = labels != -100
-            total = np.maximum(mask.sum(), 1)
-            correct = (pred_ids[mask] == labels[mask]).sum()
-            acc = float(correct) / float(total)
-            return {"accuracy": acc}
+        # compute_token_accuracy imported from backend.metrics
 
         # Early log to indicate tokenization/preparation can take time
-        log_queue.put("Preparing/tokenizing datasets (single-threaded; Windows-safe)...")
+        log_queue.put("Preparing/tokenizing datasets...")
 
         # Stable single-thread CPU to avoid Windows deadlocks
         try:
@@ -253,7 +239,7 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         except Exception:
             pass
 
-        # Tokenization pipeline (batched, single-proc)
+        # Tokenization pipeline (batched, multi-proc when possible)
         text_field = config.text_column
         def tokenize_batch(batch):
             texts = batch[text_field]
@@ -268,10 +254,20 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
             enc["labels"] = enc["input_ids"].copy()
             return enc
 
-        tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in dataset.column_names if c != text_field])
-        tokenized_eval = None
-        if eval_dataset is not None:
-            tokenized_eval = eval_dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in eval_dataset.column_names if c != text_field])
+        desired_proc = int(getattr(config.training, 'tokenizer_num_proc', None) or 0)
+        if desired_proc <= 0:
+            desired_proc = max(1, min(os.cpu_count() or 1, 8))
+        try:
+            tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=[c for c in dataset.column_names if c != text_field])
+            tokenized_eval = None
+            if eval_dataset is not None:
+                tokenized_eval = eval_dataset.map(tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=[c for c in eval_dataset.column_names if c != text_field])
+        except Exception:
+            # Fallback to single-proc for Windows or constrained environments
+            tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in dataset.column_names if c != text_field])
+            tokenized_eval = None
+            if eval_dataset is not None:
+                tokenized_eval = eval_dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in eval_dataset.column_names if c != text_field])
 
         # Ensure torch format
         try:

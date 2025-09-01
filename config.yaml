@@ -49,6 +49,7 @@ training:
   attn_implementation: auto
   evaluation_strategy: 'no'
   eval_steps: 100
+  tokenizer_num_proc: 8
 huggingface:
   push_to_hub: false
   hub_model_id: your-hf-username/your-finetuned-model-name

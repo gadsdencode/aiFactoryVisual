@@ -1,0 +1,84 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "json",
+  "dataset_size": 25048750,
+  "description": "",
+  "download_checksums": {
+    "C:/Users/JMart/APPdev/aiFactoryVisual/data/icdu_training_data_v8.jsonl": {
+      "num_bytes": 28193564,
+      "checksum": null
+    }
+  },
+  "download_size": 28193564,
+  "features": {
+    "icdu_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "persona_archetype": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "governing_principle": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "capability_layer": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "user_intent": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "context_summary": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "application_prompt": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ideal_response_final": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ideal_response_attributes": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "ideal_response_cot": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 53242314,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 25048750,
+      "num_examples": 13671,
+      "dataset_name": "json"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

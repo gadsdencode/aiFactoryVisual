@@ -1,9 +1,10 @@
-from datasets import load_dataset, Dataset, load_from_disk
+import os
+import hashlib
+from datasets import load_dataset, Dataset, load_from_disk, DatasetDict
 from backend.config import AppConfig
 import streamlit as st
 
-# Cache large dataset objects as resources to avoid heavy hashing/serialization stalls
-@st.cache_resource
+# Disk-cached dataset preparation suitable for large corpora
 def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
     """
     Loads a dataset from the Hugging Face Hub.
@@ -32,6 +33,28 @@ def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
         
         # Ensure a usable text column exists; if not, try to compose from ICDU schema
         dataset = _ensure_text_column(dataset, _config)
+
+        # On-disk caching: key based on data source and text column
+        cache_root = os.path.join('.cache', 'datasets')
+        os.makedirs(cache_root, exist_ok=True)
+        cache_key_src = f"{getattr(_config,'data_source','hf')}|{getattr(_config,'dataset_name','') or getattr(_config,'local_train_path','')}|{getattr(_config,'dataset_split','train')}|{getattr(_config,'text_column','text')}"
+        cache_key = hashlib.sha1(cache_key_src.encode('utf-8')).hexdigest()[:16]
+        cache_dir = os.path.join(cache_root, cache_key)
+        try:
+            if not os.path.exists(cache_dir):
+                dataset.save_to_disk(cache_dir)
+            else:
+                # reload ensures memory-map for speed
+                dataset = load_from_disk(cache_dir)
+        except Exception:
+            pass
+
+        # Optional: pre-tokenized shards cache marker dir
+        token_cache_root = os.path.join(cache_dir, 'tokenized')
+        try:
+            os.makedirs(token_cache_root, exist_ok=True)
+        except Exception:
+            pass
             
         source_desc = _config.local_train_path if getattr(_config, 'data_source', 'hf') == 'local' else _config.dataset_name
         st.success(f"Successfully loaded dataset '{source_desc}' with {len(dataset)} examples.")
@@ -42,7 +65,6 @@ def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
         return None
 
 
-@st.cache_resource
 def load_validation_dataset(_config: AppConfig) -> Dataset | None:
     try:
         if getattr(_config, 'data_source', 'hf') == 'local':

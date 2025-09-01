@@ -249,6 +249,14 @@ def render_configuration():
             grad_accum_adv = st.number_input("Gradient Accumulation Steps", value=int(getattr(yaml_config.training, 'gradient_accumulation_steps', 1)), min_value=1)
             lora_targets_str_default = ",".join(getattr(yaml_config.lora, 'target_modules', []) or [])
             lora_target_modules_adv = st.text_input("LoRA Target Modules (comma-separated)", value=lora_targets_str_default, help="Leave empty to keep current; comma-separated module names like q_proj,k_proj,v_proj,o_proj")
+            # Tokenizer workers
+            num_proc_default = 1
+            try:
+                import os
+                num_proc_default = min(os.cpu_count() or 1, 8)
+            except Exception:
+                pass
+            tokenizer_num_proc = st.number_input("Tokenizer Workers (num_proc)", value=int(num_proc_default), min_value=1, max_value=64, help="Parallel processes for tokenization during data prep")
     
     with st.expander("📝 Logging Configuration"):
         logging_steps_adv = st.number_input("Log Every N Steps", value=yaml_config.training.logging_steps, min_value=1)
@@ -287,6 +295,7 @@ def render_configuration():
                 'adv_report_to': report_to_adv,
                 'adv_gradient_checkpointing': bool(grad_ckpt_adv),
                 'adv_gradient_accumulation_steps': int(grad_accum_adv),
+                'adv_tokenizer_num_proc': int(tokenizer_num_proc),
                 # Data source settings
                 'data_source': data_source,
                 'local_train_path': train_path if data_source == 'local' else None,

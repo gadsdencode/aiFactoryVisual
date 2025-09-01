@@ -1,5 +1,5 @@
 import streamlit as st
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 import queue
 import pandas as pd
 import yaml
@@ -36,6 +36,7 @@ class TrainingManager:
             ]
         )
         self._cached_config = None
+        self._lock: Lock = Lock()
 
     def start_training(self):
         """
@@ -50,9 +51,11 @@ class TrainingManager:
             config = load_config("config.yaml")
             # sync basic progress constraints
             try:
-                self.max_epochs = int(config.training.num_train_epochs)
+                with self._lock:
+                    self.max_epochs = int(config.training.num_train_epochs)
             except Exception:
-                self.max_epochs = 1
+                with self._lock:
+                    self.max_epochs = 1
             dataset = load_and_prepare_dataset(config)
             eval_dataset = load_validation_dataset(config)
             if dataset is None:
@@ -65,7 +68,8 @@ class TrainingManager:
                 return False
 
             # Start training in a background thread
-            self.is_training = True
+            with self._lock:
+                self.is_training = True
             # create a stop signal for the background trainer
             self.stop_event = Event()
             self.training_thread = Thread(
@@ -81,12 +85,15 @@ class TrainingManager:
             try:
                 # Approximate steps per epoch using dataset size and batch size (ignores grad_accum)
                 per_device_bs = int(getattr(config.training, 'per_device_train_batch_size', 1) or 1)
-                self.steps_per_epoch = max(1, int((len(dataset) + per_device_bs - 1) / per_device_bs))
+                steps_per_epoch = max(1, int((len(dataset) + per_device_bs - 1) / per_device_bs))
                 max_epochs = int(getattr(config.training, 'num_train_epochs', 1) or 1)
-                self.total_steps = max(1, self.steps_per_epoch * max(1, max_epochs))
+                with self._lock:
+                    self.steps_per_epoch = steps_per_epoch
+                    self.total_steps = max(1, steps_per_epoch * max(1, max_epochs))
             except Exception:
-                self.steps_per_epoch = None
-                self.total_steps = None
+                with self._lock:
+                    self.steps_per_epoch = None
+                    self.total_steps = None
             return True
 
         except Exception as e:
@@ -126,9 +133,10 @@ class TrainingManager:
         """
         Reset UI-visible training progress and buffers.
         """
-        self.current_epoch = 0
-        self.progress = 0.0
-        self.training_data = pd.DataFrame(columns=self.training_data.columns)
+        with self._lock:
+            self.current_epoch = 0
+            self.progress = 0.0
+            self.training_data = pd.DataFrame(columns=self.training_data.columns)
         with self.log_queue.mutex:
             self.log_queue.queue.clear()
         with self.metrics_queue.mutex:
@@ -145,14 +153,17 @@ class TrainingManager:
         while not self.log_queue.empty():
             log_entry = self.log_queue.get()
             if log_entry is None: # End signal
-                self.is_training = False
+                with self._lock:
+                    self.is_training = False
                 st.session_state.training_started = False
                 break
             # Accept dict META messages and convert to simple string, also update manager state
             try:
                 if isinstance(log_entry, dict) and log_entry.get('meta') == 'progress':
-                    if 'total_steps' in log_entry and (self.total_steps is None or self.total_steps <= 0):
-                        self.total_steps = int(log_entry['total_steps'])
+                    if 'total_steps' in log_entry:
+                        # Authoritative total steps from trainer; override heuristics
+                        with self._lock:
+                            self.total_steps = int(log_entry['total_steps'])
                     logs.append(f"[META] total_steps={log_entry.get('total_steps')} log_int={log_entry.get('logging_steps')}")
                 else:
                     logs.append(log_entry)
@@ -206,11 +217,13 @@ class TrainingManager:
         # incorporate any newly arrived metrics into the cached training_data
         new_metrics = self.get_metrics()
         if not new_metrics.empty:
-            self.training_data = pd.concat([self.training_data, new_metrics]).reset_index(drop=True)
+            with self._lock:
+                self.training_data = pd.concat([self.training_data, new_metrics]).reset_index(drop=True)
             # try to update epoch/progress heuristically
             if 'epoch' in new_metrics.columns and pd.notnull(new_metrics['epoch']).any():
                 try:
-                    self.current_epoch = int(new_metrics['epoch'].dropna().iloc[-1])
+                    with self._lock:
+                        self.current_epoch = int(new_metrics['epoch'].dropna().iloc[-1])
                 except Exception:
                     pass
             # Step-based progress tracking
@@ -226,37 +239,53 @@ class TrainingManager:
                     dt = max(1e-3, now - self.last_step_time)
                     dstep = latest_step - self.last_step
                     inst_sps = dstep / dt
-                    if self.smoothed_sps is None:
-                        self.smoothed_sps = inst_sps
-                    else:
-                        self.smoothed_sps = 0.8 * self.smoothed_sps + 0.2 * inst_sps
-                self.last_step = latest_step
-                self.last_step_time = now
+                    with self._lock:
+                        if self.smoothed_sps is None:
+                            self.smoothed_sps = inst_sps
+                        else:
+                            self.smoothed_sps = 0.8 * self.smoothed_sps + 0.2 * inst_sps
+                with self._lock:
+                    self.last_step = latest_step
+                    self.last_step_time = now
                 # Progress from steps if total known, else epoch fraction
-                if self.total_steps:
-                    self.progress = min(1.0, float(latest_step) / float(self.total_steps))
-                elif self.max_epochs > 0:
-                    self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
+                with self._lock:
+                    if self.total_steps:
+                        self.progress = min(1.0, float(latest_step) / float(self.total_steps))
+                    elif self.max_epochs > 0:
+                        self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
             elif self.max_epochs > 0:
-                self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
+                with self._lock:
+                    self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
 
         thread_alive = bool(self.training_thread and self.training_thread.is_alive())
-        # Compute ETA in seconds if we have speed and remaining steps
+        # Snapshot under lock for consistent return
+        with self._lock:
+            is_training = bool(self.is_training or thread_alive)
+            paused = self.paused
+            current_epoch = int(self.current_epoch)
+            progress = float(self.progress)
+            max_epochs = int(self.max_epochs)
+            training_data_copy = self.training_data.copy()
+            total_steps = int(self.total_steps) if self.total_steps else None
+            current_step = int(self.last_step) if self.last_step is not None else None
+            sps = float(self.smoothed_sps) if self.smoothed_sps is not None else None
+
+        # Compute ETA
         eta_seconds = None
-        if self.smoothed_sps and self.smoothed_sps > 0 and self.total_steps and self.last_step is not None:
-            remaining = max(0, self.total_steps - self.last_step)
-            eta_seconds = remaining / self.smoothed_sps
+        if sps and sps > 0 and total_steps and current_step is not None:
+            remaining = max(0, total_steps - current_step)
+            eta_seconds = remaining / sps
 
         return {
-            'active': bool(self.is_training or thread_alive),
-            'paused': self.paused,
-            'current_epoch': self.current_epoch,
-            'progress': float(self.progress),
-            'max_epochs': int(self.max_epochs),
-            'training_data': self.training_data.copy(),
-            'total_steps': int(self.total_steps) if self.total_steps else None,
-            'current_step': int(self.last_step) if self.last_step is not None else None,
-            'steps_per_second': float(self.smoothed_sps) if self.smoothed_sps is not None else None,
+            'active': is_training,
+            'paused': paused,
+            'current_epoch': current_epoch,
+            'progress': progress,
+            'max_epochs': max_epochs,
+            'training_data': training_data_copy,
+            'total_steps': total_steps,
+            'current_step': current_step,
+            'steps_per_second': sps,
             'eta_seconds': float(eta_seconds) if eta_seconds is not None else None,
         }
 
@@ -311,6 +340,7 @@ class TrainingManager:
             logging_steps=app_cfg.training.logging_steps,
             save_steps=app_cfg.training.save_steps,
             report_to=app_cfg.training.report_to,
+            tokenizer_num_proc=int(getattr(app_cfg.training, 'tokenizer_num_proc', 1)),
         )
         lora_ns = SimpleNamespace(
             r=app_cfg.lora.r,
@@ -401,6 +431,8 @@ class TrainingManager:
             training['eval_steps'] = int(new_config['adv_eval_steps'])
         if 'adv_gradient_accumulation_steps' in new_config and new_config['adv_gradient_accumulation_steps']:
             training['gradient_accumulation_steps'] = int(new_config['adv_gradient_accumulation_steps'])
+        if 'adv_tokenizer_num_proc' in new_config and new_config['adv_tokenizer_num_proc']:
+            training['tokenizer_num_proc'] = int(new_config['adv_tokenizer_num_proc'])
 
         # base model is stored at top-level key 'base_model'
         if 'model_name' in new_config and new_config['model_name']:

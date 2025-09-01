@@ -12,6 +12,30 @@ def render_training_dashboard():
     
     # Get training manager
     training_manager = get_training_manager()
+
+    # Tiny hardware panel
+    try:
+        import torch  # type: ignore
+        try:
+            import bitsandbytes as _bnb  # type: ignore
+            bnb_ok = True
+        except Exception:
+            _bnb = None  # type: ignore
+            bnb_ok = False
+        cuda_ok = torch.cuda.is_available()
+        gpu_name = torch.cuda.get_device_name(0) if cuda_ok else "-"
+        vram_gb = (torch.cuda.get_device_properties(0).total_memory / (1024**3)) if cuda_ok else 0.0
+        hw_cols = st.columns(4)
+        with hw_cols[0]:
+            st.metric("CUDA", "Yes" if cuda_ok else "No")
+        with hw_cols[1]:
+            st.metric("bitsandbytes", "Yes" if (bnb_ok and cuda_ok) else "No")
+        with hw_cols[2]:
+            st.metric("GPU", gpu_name)
+        with hw_cols[3]:
+            st.metric("VRAM", f"{vram_gb:.1f} GB" if cuda_ok else "-")
+    except Exception:
+        pass
     
     # Control buttons
     col1, col2, col3, col4 = st.columns(4)
@@ -206,23 +230,15 @@ def render_training_dashboard():
         # Accuracy chart
         fig_acc = go.Figure()
         
-        if not training_data.empty and 'epoch' in training_data.columns and 'train_accuracy' in training_data.columns:
+        # Prefer evaluation accuracy (computed consistently by backend.metrics)
+        if not training_data.empty and 'epoch' in training_data.columns and 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
             fig_acc.add_trace(go.Scatter(
                 x=training_data['epoch'],
-                y=training_data['train_accuracy'],
+                y=training_data['val_accuracy'],
                 mode='lines',
-                name='Training Accuracy',
-                line=dict(color=theme['line_colors'][2], width=3)
+                name='Evaluation Accuracy',
+                line=dict(color=theme['line_colors'][3], width=3)
             ))
-            
-            if 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
-                fig_acc.add_trace(go.Scatter(
-                    x=training_data['epoch'],
-                    y=training_data['val_accuracy'],
-                    mode='lines',
-                    name='Validation Accuracy',
-                    line=dict(color=theme['line_colors'][3], width=3)
-                ))
         
         fig_acc.update_layout(
             title="Training & Validation Accuracy",
