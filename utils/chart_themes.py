@@ -26,11 +26,12 @@ def get_chart_theme():
 def apply_chart_theme(fig):
     """Apply theme styling to a Plotly figure."""
     theme = get_chart_theme()
-    
+
     fig.update_layout(
         paper_bgcolor=theme['paper_bgcolor'],
         plot_bgcolor=theme['plot_bgcolor'],
-        font=dict(color=theme['text_color']),
+        font=dict(color=theme['text_color'], family="Inter, sans-serif", size=13),
+        margin=dict(l=10, r=10, t=40, b=10),
         xaxis=dict(
             gridcolor=theme['grid_color'],
             color=theme['text_color']
@@ -43,5 +44,5 @@ def apply_chart_theme(fig):
             font=dict(color=theme['text_color'])
         )
     )
-    
+
     return fig

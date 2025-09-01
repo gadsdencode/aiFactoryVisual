@@ -194,6 +194,30 @@ def apply_custom_styles(theme='light'):
         .stTextInput > div > div > input:hover {{
             border-color: #64748B !important;
         }}
+
+        /* Text area styling (e.g., Logs) */
+        .stTextArea textarea {{
+            background-color: {input_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+            font-family: 'Inter', sans-serif !important;
+            color: {text_color} !important;
+            transition: all 0.2s ease;
+        }}
+
+        .stTextArea textarea:hover {{
+            border-color: #64748B !important;
+        }}
+
+        .stTextArea textarea:focus {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px {focus_color} !important;
+            outline: none !important;
+        }}
+
+        .stTextArea textarea::placeholder {{
+            color: {'#64748B' if theme == 'dark' else '#94A3B8'} !important;
+        }}
         
         /* Progress bar styling */
         .stProgress > div > div > div {{
@@ -783,6 +807,19 @@ def apply_custom_styles(theme='light'):
         }}
     </style>
     """, unsafe_allow_html=True)
+
+
+def inject_card(title: str | None = None, body_md: str | None = None):
+    """Convenience helper to render a styled card container.
+
+    Example:
+        inject_card("Section", "Some markdown content")
+    """
+    with st.container():
+        if title:
+            st.markdown(f"### {title}")
+        if body_md:
+            st.markdown(body_md)
 
 
 def load_css(theme: str | None = None):

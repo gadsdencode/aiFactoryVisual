@@ -19,8 +19,11 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # --- Load Custom CSS ---
-    load_css()
+    # --- Theme & Styles ---
+    # Default to dark theme for a modern aesthetic unless user chose otherwise
+    if 'theme' not in st.session_state:
+        st.session_state['theme'] = 'dark'
+    load_css(theme=st.session_state['theme'])
 
     # --- Initialize Session State ---
     if "training_manager" not in st.session_state:
@@ -47,8 +50,21 @@ def main():
         })
 
     # --- Sidebar Navigation ---
+    st.sidebar.image("attached_assets/image_1755891506297.png", use_container_width=True)
     st.sidebar.title("🏭 AI Factory LLM Trainer")
-    st.sidebar.markdown("A visual interface for fine-tuning and monitoring LLMs.")
+    st.sidebar.caption("Fine-tune, monitor, and compare LLMs with a modern UI.")
+
+    # Theme selector
+    theme_label_to_key = {"🌙 Dark": "dark", "🔆 Light": "light"}
+    current_theme_key = st.session_state.get('theme', 'dark')
+    current_label = "🌙 Dark" if current_theme_key == 'dark' else "🔆 Light"
+    chosen_label = st.sidebar.selectbox("Theme", options=["🌙 Dark", "🔆 Light"], index=["🌙 Dark", "🔆 Light"].index(current_label))
+    new_theme = theme_label_to_key[chosen_label]
+    if new_theme != current_theme_key:
+        st.session_state['theme'] = new_theme
+        # Re-apply styles then rerun to ensure full theme swap
+        load_css(theme=new_theme)
+        st.rerun()
     page = st.sidebar.radio(
         "Navigation",
         [

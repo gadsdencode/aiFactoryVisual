@@ -38,18 +38,19 @@ def render_training_dashboard():
     except Exception:
         pass
     
-    # Control buttons
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if st.button("▶️ Start Training", type="primary", width='stretch'):
+    # Controls and views organized into tabs
+    tabs = st.tabs(["📈 Metrics", "📝 Training Logs", "📊 System"])
+
+    # Global control bar at top
+    ctrl1, ctrl2, ctrl3, ctrl4 = st.columns(4)
+    with ctrl1:
+        if st.button("▶️ Start Training", type="primary", use_container_width=True):
             if training_manager.start_training():
                 st.success("Training started!")
             else:
                 st.warning("Training is already active!")
-    
-    with col2:
-        if st.button("⏸️ Pause Training", width='stretch'):
+    with ctrl2:
+        if st.button("⏸️ Pause/Resume", use_container_width=True):
             if training_manager.pause_training():
                 status = training_manager.get_status_snapshot()
                 if status['paused']:
@@ -58,19 +59,17 @@ def render_training_dashboard():
                     st.info("Training resumed!")
             else:
                 st.warning("No active training to pause/resume!")
-    
-    with col3:
-        if st.button("⏹️ Stop Training", width='stretch'):
+    with ctrl3:
+        if st.button("⏹️ Stop Training", use_container_width=True):
             if training_manager.stop_training():
                 st.error("Training stopped!")
             else:
                 st.warning("No active training to stop!")
-    
-    with col4:
-        if st.button("🔄 Reset", width='stretch'):
+    with ctrl4:
+        if st.button("🔄 Reset", use_container_width=True):
             training_manager.reset_training()
             st.info("Training reset!")
-    
+
     st.markdown("---")
     
     # Get current training status
@@ -184,123 +183,104 @@ def render_training_dashboard():
     with k3:
         st.metric("Total Steps", str(status.get('total_steps') or '-'))
 
-    # Charts
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📈 Loss Curves")
-        
-        # Loss chart
-        fig_loss = go.Figure()
-        theme = get_chart_theme()
-        
-        if not training_data.empty and 'epoch' in training_data.columns and 'train_loss' in training_data.columns:
-            fig_loss.add_trace(go.Scatter(
-                x=training_data['epoch'],
-                y=training_data['train_loss'],
-                mode='lines',
-                name='Training Loss',
-                line=dict(color=theme['line_colors'][0], width=3)
-            ))
-            
-            if 'val_loss' in training_data.columns and training_data['val_loss'].notna().any():
+    # Charts inside the Metrics tab
+    with tabs[0]:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("📈 Loss Curves")
+            fig_loss = go.Figure()
+            theme = get_chart_theme()
+            if not training_data.empty and 'epoch' in training_data.columns and 'train_loss' in training_data.columns:
                 fig_loss.add_trace(go.Scatter(
                     x=training_data['epoch'],
-                    y=training_data['val_loss'],
+                    y=training_data['train_loss'],
                     mode='lines',
-                    name='Validation Loss',
-                    line=dict(color=theme['line_colors'][1], width=3)
+                    name='Training Loss',
+                    line=dict(color=theme['line_colors'][0], width=3)
                 ))
-        
-        fig_loss.update_layout(
-            title="Training & Validation Loss",
-            xaxis_title="Epoch",
-            yaxis_title="Loss",
-            height=400,
-            showlegend=True,
-            hovermode='x unified'
-        )
-        
-        fig_loss = apply_chart_theme(fig_loss)
-        
-        st.plotly_chart(fig_loss, use_container_width=True)
-    
-    with col2:
-        st.subheader("🎯 Accuracy Metrics")
-        
-        # Accuracy chart
-        fig_acc = go.Figure()
-        
-        # Prefer evaluation accuracy (computed consistently by backend.metrics)
-        if not training_data.empty and 'epoch' in training_data.columns and 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
-            fig_acc.add_trace(go.Scatter(
-                x=training_data['epoch'],
-                y=training_data['val_accuracy'],
-                mode='lines',
-                name='Evaluation Accuracy',
-                line=dict(color=theme['line_colors'][3], width=3)
-            ))
-        
-        fig_acc.update_layout(
-            title="Training & Validation Accuracy",
-            xaxis_title="Epoch",
-            yaxis_title="Accuracy",
-            height=400,
-            showlegend=True,
-            hovermode='x unified'
-        )
-        
-        fig_acc = apply_chart_theme(fig_acc)
-        
-        st.plotly_chart(fig_acc, use_container_width=True)
+                if 'val_loss' in training_data.columns and training_data['val_loss'].notna().any():
+                    fig_loss.add_trace(go.Scatter(
+                        x=training_data['epoch'],
+                        y=training_data['val_loss'],
+                        mode='lines',
+                        name='Validation Loss',
+                        line=dict(color=theme['line_colors'][1], width=3)
+                    ))
+            fig_loss.update_layout(
+                title="Training & Validation Loss",
+                xaxis_title="Epoch",
+                yaxis_title="Loss",
+                height=400,
+                showlegend=True,
+                hovermode='x unified'
+            )
+            fig_loss = apply_chart_theme(fig_loss)
+            st.plotly_chart(fig_loss, use_container_width=True)
+        with col2:
+            st.subheader("🎯 Accuracy Metrics")
+            fig_acc = go.Figure()
+            if not training_data.empty and 'epoch' in training_data.columns and 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
+                fig_acc.add_trace(go.Scatter(
+                    x=training_data['epoch'],
+                    y=training_data['val_accuracy'],
+                    mode='lines',
+                    name='Evaluation Accuracy',
+                    line=dict(color=theme['line_colors'][3], width=3)
+                ))
+            fig_acc.update_layout(
+                title="Training & Validation Accuracy",
+                xaxis_title="Epoch",
+                yaxis_title="Accuracy",
+                height=400,
+                showlegend=True,
+                hovermode='x unified'
+            )
+            fig_acc = apply_chart_theme(fig_acc)
+            st.plotly_chart(fig_acc, use_container_width=True)
     
     # Learning rate schedule & Grad Norm
-    st.subheader("📊 Learning Rate Schedule")
-    
-    fig_lr = go.Figure()
-    
-    if not training_data.empty and 'epoch' in training_data.columns and 'learning_rate' in training_data.columns:
-        fig_lr.add_trace(go.Scatter(
-            x=training_data['epoch'],
-            y=training_data['learning_rate'],
-            mode='lines',
-            name='Learning Rate',
-            line=dict(color=theme['line_colors'][4], width=3),
-            fill='tozeroy',
-            fillcolor='rgba(239, 68, 68, 0.1)'
-        ))
-    
-    fig_lr.update_layout(
-        title="Learning Rate Schedule",
-        xaxis_title="Epoch",
-        yaxis_title="Learning Rate",
-        height=300,
-        showlegend=False
-    )
-    
-    fig_lr = apply_chart_theme(fig_lr)
-    
-    st.plotly_chart(fig_lr, use_container_width=True)
+    with tabs[0]:
+        st.subheader("📊 Learning Rate Schedule")
+        fig_lr = go.Figure()
+        if not training_data.empty and 'epoch' in training_data.columns and 'learning_rate' in training_data.columns:
+            fig_lr.add_trace(go.Scatter(
+                x=training_data['epoch'],
+                y=training_data['learning_rate'],
+                mode='lines',
+                name='Learning Rate',
+                line=dict(color=theme['line_colors'][4], width=3),
+                fill='tozeroy',
+                fillcolor='rgba(239, 68, 68, 0.1)'
+            ))
+        fig_lr.update_layout(
+            title="Learning Rate Schedule",
+            xaxis_title="Epoch",
+            yaxis_title="Learning Rate",
+            height=300,
+            showlegend=False
+        )
+        fig_lr = apply_chart_theme(fig_lr)
+        st.plotly_chart(fig_lr, use_container_width=True)
 
     # Grad Norm chart (if available)
-    if not training_data.empty and 'grad_norm' in training_data.columns and training_data['grad_norm'].notna().any():
-        st.subheader("📐 Gradient Norm")
-        fig_g = go.Figure()
-        fig_g.add_trace(go.Scatter(
-            x=training_data['epoch'] if 'epoch' in training_data.columns else training_data.index,
-            y=training_data['grad_norm'],
-            mode='lines',
-            name='Grad Norm',
-            line=dict(color=theme['line_colors'][5 % len(theme['line_colors'])], width=3),
-        ))
-        fig_g.update_layout(title="Gradient Norm", xaxis_title="Epoch", yaxis_title="Norm", height=300, showlegend=False)
-        fig_g = apply_chart_theme(fig_g)
-        st.plotly_chart(fig_g, use_container_width=True)
+    with tabs[0]:
+        if not training_data.empty and 'grad_norm' in training_data.columns and training_data['grad_norm'].notna().any():
+            st.subheader("📐 Gradient Norm")
+            fig_g = go.Figure()
+            fig_g.add_trace(go.Scatter(
+                x=training_data['epoch'] if 'epoch' in training_data.columns else training_data.index,
+                y=training_data['grad_norm'],
+                mode='lines',
+                name='Grad Norm',
+                line=dict(color=theme['line_colors'][5 % len(theme['line_colors'])], width=3),
+            ))
+            fig_g.update_layout(title="Gradient Norm", xaxis_title="Epoch", yaxis_title="Norm", height=300, showlegend=False)
+            fig_g = apply_chart_theme(fig_g)
+            st.plotly_chart(fig_g, use_container_width=True)
     
-    # Logs and recent steps in tabs for cleaner UX
-    st.subheader("🧭 Live View")
-    tab_overview, tab_steps, tab_logs = st.tabs(["Recent Metrics", "Recent Steps", "Logs"])
-    with tab_overview:
+    # Logs and recent steps organized into the Logs tab
+    with tabs[1]:
+        st.subheader("🧭 Live View")
         if status['active'] and not status['paused']:
             st.info(f"🔄 Epoch {status['current_epoch']}: Training in progress...")
         elif status['paused']:
@@ -309,28 +289,31 @@ def render_training_dashboard():
             st.success(f"✅ Last completed epoch: {status['current_epoch']}")
         else:
             st.info("⏳ Training not started yet")
-        # Small table of last few metrics
         if not training_data.empty:
             cols = [c for c in ['step','epoch','train_loss','val_loss','grad_norm','learning_rate','timestamp'] if c in training_data.columns]
             mini = training_data[cols].tail(8).copy()
             if 'timestamp' in mini.columns:
                 mini['timestamp'] = mini['timestamp'].dt.strftime('%H:%M:%S')
             st.dataframe(mini, use_container_width=True)
-    with tab_steps:
-        if not training_data.empty:
-            cols = [c for c in ['step','epoch','train_loss','val_loss','grad_norm','learning_rate','timestamp'] if c in training_data.columns]
-            table = training_data[cols].tail(50).copy()
-            if 'timestamp' in table.columns:
-                table['timestamp'] = table['timestamp'].dt.strftime('%H:%M:%S')
-            st.dataframe(table, use_container_width=True)
-        else:
-            st.info("No step data yet.")
-    with tab_logs:
         logs_text = training_manager.get_logs()
-        if logs_text:
-            st.text_area("Logs", logs_text, height=220, key="logs_tab_textarea")
+        st.text_area("Logs", logs_text or "", height=220, key="logs_tab_textarea")
+
+    # System tab: hardware snapshot and final metrics
+    with tabs[2]:
+        st.subheader("🖥️ System & Session")
+        try:
+            import platform
+            import sys
+            st.markdown(f"**Python:** {sys.version.split()[0]}  •  **Platform:** {platform.platform()}")
+        except Exception:
+            pass
+        st.markdown("---")
+        st.subheader("📦 Final Metrics Snapshot")
+        df_final = training_manager.get_metrics_df()
+        if not df_final.empty:
+            st.dataframe(df_final.tail(100), use_container_width=True)
         else:
-            st.info("No logs yet.")
+            st.info("No metrics captured yet.")
 
 
 def training_dashboard():
