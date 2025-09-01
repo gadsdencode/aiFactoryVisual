@@ -73,6 +73,7 @@ class StreamlitCallback(TrainerCallback):
         # Emit a per-step start log to indicate liveness
         try:
             self.log_queue.put(f"Step {state.global_step + 1} begin")
+            self.log_queue.put("[training_step] forward begin")
         except Exception:
             self.log_queue.put("Step begin")
 
@@ -84,6 +85,10 @@ class StreamlitCallback(TrainerCallback):
                 'epoch': float(state.epoch) if state.epoch is not None else None,
             }
             self.metrics_queue.put(pd.DataFrame([hb]))
+        except Exception:
+            pass
+        try:
+            self.log_queue.put("[training_step] forward/backward done")
         except Exception:
             pass
         # Respect stop request
@@ -300,35 +305,8 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         except Exception:
             pass
 
-        # Optional verbose trainer to expose first step forward/backward progress for debugging/perf transparency
-        first_batch_logged = {"done": False}
-        outer_log_queue = log_queue
-        class StreamlitTrainer(SFTTrainer):  # type: ignore
-            def training_step(self, model, inputs, num_items_in_batch: int | None = None):  # type: ignore
-                try:
-                    if not first_batch_logged["done"]:
-                        try:
-                            shapes = {k: tuple(v.shape) for k, v in inputs.items() if hasattr(v, 'shape')}
-                            outer_log_queue.put(f"Batch shapes: {shapes}")
-                        except Exception:
-                            pass
-                        first_batch_logged["done"] = True
-                    outer_log_queue.put("[training_step] forward begin")
-                    out = super().training_step(model, inputs, num_items_in_batch)
-                    outer_log_queue.put("[training_step] forward/backward done")
-                    try:
-                        torch.cuda.synchronize()  # type: ignore
-                    except Exception:
-                        pass
-                    return out
-                except RuntimeError as rte:
-                    # Surface OOM or CUDA errors clearly to UI
-                    msg = str(rte)
-                    outer_log_queue.put(f"[training_step] runtime error: {msg}")
-                    raise
-
-        # Prefer processing_class (new API) to avoid tokenizer deprecation; fall back if unsupported
-        trainer = StreamlitTrainer(
+        # Standard SFTTrainer with StreamlitCallback for logging
+        trainer = SFTTrainer(
             model=model,
             args=sft_config,
             train_dataset=tokenized_train,
