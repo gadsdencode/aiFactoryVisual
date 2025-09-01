@@ -1,0 +1,23 @@
+name: aifactory
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch
+  - numpy
+  - pandas
+  - pyyaml
+  - pydantic
+  - streamlit
+  - plotly
+  - datasets
+  - transformers
+  - accelerate
+  - huggingface_hub
+  - tensorboard
+  - peft
+  - pip:
+      - trl>=0.9
+      - bitsandbytes>=0.43  # optional; remove if not using 4-bit quantization
