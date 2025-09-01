@@ -42,10 +42,10 @@ training:
   group_by_length: true
   lr_scheduler_type: constant
   report_to: tensorboard
-  max_seq_length: null
+  max_seq_length: 1024
   packing: false
   device_map: auto
-  gradient_checkpointing: false
+  gradient_checkpointing: true
   attn_implementation: auto
   evaluation_strategy: 'no'
   eval_steps: 100

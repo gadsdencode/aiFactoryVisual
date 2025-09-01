@@ -12,7 +12,7 @@ from backend.config import AppConfig
 from backend.huggingface_integration import hf_login, push_to_hub
 from backend.metrics import compute_token_accuracy
 import streamlit as st
-from threading import Thread
+from threading import Thread, Event
 import queue
 from transformers import TrainerCallback, TrainingArguments
 
@@ -104,11 +104,6 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
     This function runs the training process and is intended to be called in a separate thread.
     """
     try:
-        # Avoid tokenizers parallelism deadlocks on Windows/threads
-        try:
-            os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        except Exception:
-            pass
         # --- Hugging Face Login ---
         if config.huggingface.push_to_hub:
             hf_login(config.huggingface.hub_token)
@@ -262,6 +257,15 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         desired_proc = int(getattr(config.training, 'tokenizer_num_proc', None) or 0)
         if desired_proc <= 0:
             desired_proc = max(1, min(os.cpu_count() or 1, 8))
+        # Align Hugging Face tokenizers' internal threading with datasets multiprocessing
+        try:
+            if desired_proc <= 1:
+                os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            else:
+                os.environ["TOKENIZERS_PARALLELISM"] = "true"
+            log_queue.put(f"Tokenization parallelism resolved: num_proc={desired_proc}, TOKENIZERS_PARALLELISM={os.environ.get('TOKENIZERS_PARALLELISM')}")
+        except Exception:
+            pass
         try:
             tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=[c for c in dataset.column_names if c != text_field])
             tokenized_eval = None

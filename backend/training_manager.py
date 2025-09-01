@@ -5,7 +5,7 @@ import pandas as pd
 import yaml
 from types import SimpleNamespace
 
-from backend.config import load_config
+from backend.config import load_config, AppConfig
 from backend.data import load_and_prepare_dataset, load_validation_dataset
 from backend.model_setup import setup_model_and_tokenizer
 from backend.trainer import run_training_in_thread
@@ -36,6 +36,7 @@ class TrainingManager:
             ]
         )
         self._cached_config = None
+        self._app_config: AppConfig | None = None
         self._lock: Lock = Lock()
 
     def start_training(self):
@@ -48,7 +49,7 @@ class TrainingManager:
 
         try:
             # Load configurations and data
-            config = load_config("config.yaml")
+            config = self._get_app_config()
             # sync basic progress constraints
             try:
                 with self._lock:
@@ -173,14 +174,18 @@ class TrainingManager:
 
     def get_metrics(self):
         """
-        Retrieves all available metrics from the queue and concatenates them.
+        Retrieves available metrics from the queue and concatenates them in batches
+        to avoid expensive concatenation of many tiny DataFrames.
         """
         standardized_frames = []
         expected_cols = [
             'step', 'epoch', 'train_loss', 'val_loss',
             'train_accuracy', 'val_accuracy', 'learning_rate', 'timestamp'
         ]
-        while not self.metrics_queue.empty():
+        # Process a limited number of queue items per call to keep UI responsive
+        batch_size = 100
+        processed = 0
+        while not self.metrics_queue.empty() and processed < batch_size:
             metric_df = self.metrics_queue.get()
             # Normalize incoming logs (which may contain: step, loss, learning_rate, epoch)
             try:
@@ -203,11 +208,12 @@ class TrainingManager:
             # Ensure column order and presence
             normalized = normalized.reindex(columns=expected_cols)
             standardized_frames.append(normalized)
+            processed += 1
 
         if not standardized_frames:
             return pd.DataFrame(columns=expected_cols)
 
-        out = pd.concat(standardized_frames).reset_index(drop=True)
+        out = pd.concat(standardized_frames, ignore_index=True)
         return out
 
     def get_status(self):
@@ -294,7 +300,7 @@ class TrainingManager:
         Load config and expose a shape expected by the UI code.
         Returns an object with namespaces: data, model, quantization, training, lora
         """
-        app_cfg = load_config("config.yaml")
+        app_cfg = self._get_app_config()
         data_ns = SimpleNamespace(
             train_file=(app_cfg.local_train_path if getattr(app_cfg, 'data_source', 'hf') == 'local' else f"hf:{app_cfg.dataset_name}:{app_cfg.dataset_split}"),
             validation_file=(app_cfg.local_validation_path if getattr(app_cfg, 'data_source', 'hf') == 'local' else f"hf:{app_cfg.dataset_name}:validation")
@@ -362,12 +368,19 @@ class TrainingManager:
         except Exception:
             return None
 
+    def _get_app_config(self) -> AppConfig:
+        """Return cached AppConfig, loading from disk if not already cached."""
+        with self._lock:
+            if self._app_config is None:
+                self._app_config = load_config("config.yaml")
+            return self._app_config
+
     def get_config(self):
         """
         Return a simplified dict used by the configuration UI.
         Maps fields from Pydantic AppConfig to the expected keys.
         """
-        app_cfg = load_config("config.yaml")
+        app_cfg = self._get_app_config()
         # derive warmup_steps from warmup_ratio if possible (heuristic for UI input)
         try:
             warmup_steps = int(round(float(app_cfg.training.warmup_ratio) * 10000))
@@ -488,8 +501,9 @@ class TrainingManager:
         try:
             with open("config.yaml", 'w') as f:
                 yaml.safe_dump(yaml_cfg, f, sort_keys=False)
-            # refresh cached values used by UI
+            # refresh cached values used by UI and invalidate AppConfig cache
             self._cached_config = None
+            self._app_config = None
             return True
         except Exception as e:
             st.error(f"Failed to update configuration: {e}")
