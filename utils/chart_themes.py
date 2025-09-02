@@ -1,4 +1,5 @@
 import streamlit as st
+import altair as alt
 
 def get_chart_theme():
     """Get chart styling based on current theme."""
@@ -46,3 +47,62 @@ def apply_chart_theme(fig):
     )
 
     return fig
+
+
+def setup_altair_theme():
+    """Register and enable Altair themes for light/dark, switch based on session theme."""
+    font = "Inter"
+    common_range = [
+        "#4F8BF9",
+        "#FF6B6B",
+        "#42D6A4",
+        "#FFC107",
+        "#9A5BEF",
+        "#2D3748",
+    ]
+
+    urban_light_theme = {
+        "config": {
+            "title": {"fontSize": 18, "font": font, "anchor": "start", "color": "#1E1E1E"},
+            "axis": {
+                "labelFont": font,
+                "labelFontSize": 12,
+                "titleFont": font,
+                "titleFontSize": 14,
+                "titleColor": "#333333",
+                "gridColor": "#E0E0E0",
+                "domainColor": "#666666",
+            },
+            "legend": {"labelFont": font, "labelFontSize": 12, "titleFont": font, "titleFontSize": 14, "symbolSize": 100},
+            "view": {"stroke": "transparent"},
+            "range": {"category": common_range},
+        }
+    }
+
+    urban_dark_theme = {
+        "config": {
+            "title": {"fontSize": 18, "font": font, "anchor": "start", "color": "#E5E7EB"},
+            "axis": {
+                "labelFont": font,
+                "labelFontSize": 12,
+                "labelColor": "#E5E7EB",
+                "titleFont": font,
+                "titleFontSize": 14,
+                "titleColor": "#F3F4F6",
+                "gridColor": "#334155",
+                "domainColor": "#94A3B8",
+            },
+            "legend": {"labelFont": font, "labelFontSize": 12, "labelColor": "#E5E7EB", "titleFont": font, "titleFontSize": 14, "titleColor": "#F3F4F6", "symbolSize": 100},
+            "view": {"stroke": "transparent", "background": "#0F172A"},
+            "background": "#0F172A",
+            "range": {"category": common_range},
+        }
+    }
+
+    try:
+        alt.themes.register("urban_light", lambda: urban_light_theme)
+        alt.themes.register("urban_dark", lambda: urban_dark_theme)
+        current = st.session_state.get('theme', 'light')
+        alt.themes.enable("urban_dark" if current == 'dark' else "urban_light")
+    except Exception:
+        pass

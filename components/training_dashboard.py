@@ -7,9 +7,60 @@ import time
 from utils.chart_themes import apply_chart_theme, get_chart_theme
 from backend.training_manager import get_training_manager
 
+def _render_training_dashboard_compact():
+    st.header("📊 Training Dashboard")
+    manager = get_training_manager()
+    if 'training_complete' not in st.session_state:
+        st.session_state.training_complete = False
+
+    if not st.session_state.training_complete:
+        with st.spinner("Training in progress... Please wait."):
+            manager.start_training()
+        st.session_state.training_complete = True
+        st.success("🎉 Training complete! You can now view the results and compare models.")
+        try:
+            st.balloons()
+        except Exception:
+            pass
+
+    st.subheader("🏁 Final Results")
+    df = manager.get_metrics_df()
+    if not df.empty:
+        # Key metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            last_loss = df['train_loss'].dropna().iloc[-1] if 'train_loss' in df.columns and df['train_loss'].notna().any() else None
+            st.metric("Final Loss", f"{last_loss:.4f}" if last_loss is not None else "-")
+        with col2:
+            last_acc = df['val_accuracy'].dropna().iloc[-1] if 'val_accuracy' in df.columns and df['val_accuracy'].notna().any() else None
+            st.metric("Final Accuracy", f"{last_acc:.2%}" if last_acc is not None else "-")
+        with col3:
+            epochs = int(df['epoch'].dropna().max()) if 'epoch' in df.columns and df['epoch'].notna().any() else None
+            st.metric("Total Epochs", f"{epochs or '-'}")
+
+        st.divider()
+        st.subheader("📈 Performance Charts")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if 'epoch' in df.columns and 'train_loss' in df.columns:
+                st.line_chart(df.set_index('epoch')[['train_loss']].dropna(), use_container_width=True)
+        with col_b:
+            if 'epoch' in df.columns and 'val_accuracy' in df.columns:
+                st.line_chart(df.set_index('epoch')[['val_accuracy']].dropna(), use_container_width=True)
+
+        with st.expander("📜 View Training Logs"):
+            logs = manager.get_logs()
+            st.text_area("Logs", logs or "", height=300, disabled=True)
+    else:
+        st.info("No metrics captured yet.")
+
+
 def render_training_dashboard():
     st.title("🚀 Training Dashboard")
     st.markdown("Real-time monitoring of LLM training pipeline")
+    mode = st.radio("Layout", ["Advanced", "Guided"], horizontal=True, index=0)
+    if mode == "Guided":
+        return _render_training_dashboard_compact()
     
     # Get training manager
     training_manager = get_training_manager()
@@ -47,6 +98,11 @@ def render_training_dashboard():
         if st.button("▶️ Start Training", type="primary", width='stretch'):
             if training_manager.start_training():
                 st.success("Training started!")
+                try:
+                    st.toast("🚀 Training has started! Navigate to the Dashboard to monitor progress.", icon="✅")
+                except Exception:
+                    pass
+                st.session_state['training_started'] = True
             else:
                 st.warning("Training is already active!")
     with ctrl2:

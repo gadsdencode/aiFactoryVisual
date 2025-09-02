@@ -4,11 +4,68 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+import altair as alt
 from utils.chart_themes import apply_chart_theme, get_chart_theme
+
+def _render_model_comparison_side_by_side():
+    st.header("⚖️ Model Comparison")
+    if 'model_data' not in st.session_state or st.session_state.model_data is None or st.session_state.model_data.empty:
+        st.warning("No models have been trained yet. Complete a training run to compare models.", icon="⚠️")
+        return
+
+    df = st.session_state.model_data.copy()
+    # Map to option labels
+    opts = {f"{m} (Run {i+1})": m for i, m in enumerate(df['model_name'].tolist())}
+    selected = st.multiselect("Select Models to Compare", options=list(opts.keys()), default=list(opts.keys())[:2])
+    if len(selected) < 2:
+        st.info("Please select at least two models to compare.")
+        return
+    st.divider()
+
+    # Side-by-side metrics
+    chosen = [opts[n] for n in selected]
+    sub = df[df['model_name'].isin(chosen)]
+    cols = st.columns(len(chosen))
+    for i, name in enumerate(chosen):
+        row = sub[sub['model_name'] == name].iloc[0]
+        with cols[i]:
+            st.subheader(selected[i])
+            st.metric("Final Loss", f"{row['final_loss']:.4f}")
+            st.metric("Final Accuracy", f"{row['final_accuracy']:.2%}")
+            st.metric("Training Time", f"{row['training_time']:.1f}h")
+
+    st.divider()
+    st.subheader("📈 Combined Performance Charts")
+    # Synthetic per-epoch chart data isn't persisted; demonstrate with Altair lines using available columns
+    alt_df = pd.DataFrame({
+        'epoch': list(range(1, len(chosen)+1)) * 2,
+        'value': list(sub['final_loss']) + list(sub['final_accuracy']),
+        'metric': ['loss'] * len(chosen) + ['accuracy'] * len(chosen),
+        'Model': list(sub['model_name']) + list(sub['model_name'])
+    })
+    loss_chart = alt.Chart(alt_df[alt_df['metric'] == 'loss']).mark_line(point=True).encode(
+        x=alt.X('epoch:Q', title='Epoch'),
+        y=alt.Y('value:Q', title='Loss', scale=alt.Scale(zero=False)),
+        color='Model:N',
+        tooltip=['epoch', 'value', 'Model']
+    ).properties(title='Loss Comparison').interactive()
+    acc_chart = alt.Chart(alt_df[alt_df['metric'] == 'accuracy']).mark_line(point=True).encode(
+        x=alt.X('epoch:Q', title='Epoch'),
+        y=alt.Y('value:Q', title='Accuracy', scale=alt.Scale(zero=False)),
+        color='Model:N',
+        tooltip=['epoch', 'value', 'Model']
+    ).properties(title='Accuracy Comparison').interactive()
+    st.altair_chart(loss_chart, use_container_width=True)
+    st.altair_chart(acc_chart, use_container_width=True)
+
 
 def render_model_comparison():
     st.title("🔍 Model Comparison")
     st.markdown("Compare performance across different model configurations")
+
+    layout_mode = st.radio("Layout", ["Advanced", "Side-by-side"], horizontal=True, index=0)
+    if layout_mode == "Side-by-side":
+        return _render_model_comparison_side_by_side()
 
     # Guard: ensure model_data exists and has required columns
     if 'model_data' not in st.session_state or st.session_state.model_data is None or st.session_state.model_data.empty:
@@ -19,6 +76,17 @@ def render_model_comparison():
     tab_quant, tab_qual = st.tabs(["📊 Quantitative Comparison", "💬 Qualitative Playground"])
 
     with tab_quant:
+        # Interactive filters
+        with st.sidebar:
+            st.header("Filter Options")
+            try:
+                min_accuracy = st.slider("Minimum Accuracy", 0.0, 1.0, 0.7)
+            except Exception:
+                min_accuracy = 0.0
+            try:
+                max_time = st.slider("Maximum Training Time", 0.0, 10.0, 5.0)
+            except Exception:
+                max_time = 10.0
         # Model selection
         col1, col2 = st.columns([2, 1])
         with col1:
@@ -40,9 +108,11 @@ def render_model_comparison():
         if not selected_models:
             st.warning("Please select at least one model to compare.")
             return
-        filtered_data = st.session_state.model_data[
-            st.session_state.model_data['model_name'].isin(selected_models)
-        ]
+        # Apply sidebar filters before selection visuals
+        base_df = st.session_state.model_data.copy()
+        if 'final_accuracy' in base_df.columns and 'training_time' in base_df.columns:
+            base_df = base_df[(base_df['final_accuracy'] >= float(min_accuracy)) & (base_df['training_time'] <= float(max_time))]
+        filtered_data = base_df[base_df['model_name'].isin(selected_models)]
         st.markdown("---")
         st.subheader("📊 Performance Overview")
         cols = st.columns(len(selected_models))
@@ -101,6 +171,9 @@ def render_model_comparison():
         st.subheader("📋 Detailed Comparison")
         comparison_df = filtered_data[['model_name', 'final_loss', 'final_accuracy', 
                                       'training_time', 'memory_usage', 'parameters']].copy()
+        # Sorting option
+        sort_by = st.selectbox("Sort by", options=list(comparison_df.columns))
+        comparison_df = comparison_df.sort_values(by=sort_by)
         comparison_df['final_loss'] = comparison_df['final_loss'].round(4)
         comparison_df['final_accuracy'] = (comparison_df['final_accuracy'] * 100).round(2)
         comparison_df['training_time'] = comparison_df['training_time'].round(1)

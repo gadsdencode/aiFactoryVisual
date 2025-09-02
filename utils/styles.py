@@ -1,6 +1,6 @@
 import streamlit as st
 
-def apply_custom_styles(theme='light'):
+def apply_base_styles(theme='light'):
     """Apply custom CSS styles matching the specified design requirements."""
     
     # Define colors based on theme
@@ -822,9 +822,90 @@ def inject_card(title: str | None = None, body_md: str | None = None):
             st.markdown(body_md)
 
 
+def apply_custom_styles(theme='light'):
+    """Backwards-compatible alias: apply base styles plus brand overrides."""
+    apply_base_styles(theme)
+    _apply_brand_overrides(theme)
+
+def _apply_brand_overrides(theme: str):
+    """Apply brand overrides that respect dark/light theme."""
+    if theme == 'dark':
+        sidebar_bg = '#1E293B'
+        sidebar_border = '#334155'
+        sidebar_h_color = '#F8FAFC'
+        sidebar_text = '#E5E7EB'
+        tab_selected_bg = '#3B82F6'
+        tab_selected_color = '#FFFFFF'
+        button_bg = '#3B82F6'
+        button_bg_hover = '#2563EB'
+        button_bg_active = '#1D4ED8'
+        expander_border = '#334155'
+        expander_shadow = '0 4px 6px rgba(0,0,0,0.25)'
+        metric_bg = '#0F172A'
+        metric_border = '#334155'
+        metric_shadow = '0 2px 4px rgba(0,0,0,0.35)'
+    else:
+        sidebar_bg = '#F0F2F6'
+        sidebar_border = '#E0E0E0'
+        sidebar_h_color = '#1E1E1E'
+        sidebar_text = '#1E1E1E'
+        tab_selected_bg = '#4F8BF9'
+        tab_selected_color = '#FFFFFF'
+        button_bg = '#4F8BF9'
+        button_bg_hover = '#3C72D3'
+        button_bg_active = '#2A5BAA'
+        expander_border = '#E0E0E0'
+        expander_shadow = '0 4px 6px rgba(0,0,0,0.05)'
+        metric_bg = '#FFFFFF'
+        metric_border = '#E0E0E0'
+        metric_shadow = '0 4px 6px rgba(0,0,0,0.05)'
+
+    st.markdown(
+        f"""
+    <style>
+    /* Brand overrides layered on base theme */
+    [data-testid="stSidebar"] {{
+        background-color: {sidebar_bg} !important;
+        border-right: 1px solid {sidebar_border} !important;
+    }}
+    [data-testid="stSidebar"] * {{
+        color: {sidebar_text} !important;
+    }}
+    [data-testid="stSidebar"] h1 {{
+        color: {sidebar_h_color} !important;
+    }}
+    [data-testid="stTabs"] button[aria-selected="true"] {{
+        background-color: {tab_selected_bg} !important;
+        color: {tab_selected_color} !important;
+    }}
+    [data-testid="stButton"] button {{
+        background-color: {button_bg} !important;
+    }}
+    [data-testid="stButton"] button:hover {{
+        background-color: {button_bg_hover} !important;
+    }}
+    [data-testid="stButton"] button:active {{
+        background-color: {button_bg_active} !important;
+    }}
+    [data-testid="stExpander"] {{
+        border: 1px solid {expander_border} !important;
+        box-shadow: {expander_shadow} !important;
+    }}
+    [data-testid="stMetric"] {{
+        background-color: {metric_bg} !important;
+        border: 1px solid {metric_border} !important;
+        box-shadow: {metric_shadow} !important;
+    }}
+    </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def load_css(theme: str | None = None):
     """Backwards-compatible helper expected by app.py.
-    Applies the custom styles using the provided theme or session/default.
+    Applies base theme and brand overrides using the provided theme or session/default.
     """
     chosen_theme = theme or st.session_state.get('theme', 'light')
-    apply_custom_styles(chosen_theme)
+    apply_base_styles(chosen_theme)
+    _apply_brand_overrides(chosen_theme)
