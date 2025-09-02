@@ -131,6 +131,48 @@ def render_configuration():
     st.markdown("Manage training parameters and model configurations")
     st.info("🤗 **HuggingFace Integration Enabled**: You can now use any compatible LLM from the HuggingFace model hub!")
 
+    # Preset configurations (sidebar)
+    try:
+        training_manager = get_training_manager()
+        st.sidebar.subheader("Configuration Presets")
+        preset = st.sidebar.selectbox("Load a preset", ["Custom", "Fastest Training", "Highest Accuracy", "Low Memory"])
+        if preset and preset != "Custom":
+            presets_map = {
+                "Fastest Training": {
+                    'learning_rate': 5e-4,
+                    'batch_size': 2,
+                    'max_epochs': 1,
+                    'optimizer': 'paged_adamw_8bit',
+                    'warmup_steps': 200,
+                    'adv_gradient_checkpointing': False,
+                },
+                "Highest Accuracy": {
+                    'learning_rate': 1e-4,
+                    'batch_size': 2,
+                    'max_epochs': 3,
+                    'optimizer': 'adamw_torch',
+                    'warmup_steps': 1500,
+                    'adv_gradient_checkpointing': True,
+                },
+                "Low Memory": {
+                    'learning_rate': 2e-4,
+                    'batch_size': 1,
+                    'max_epochs': 1,
+                    'optimizer': 'paged_adamw_8bit',
+                    'warmup_steps': 500,
+                    'adv_gradient_checkpointing': True,
+                    'adv_quant_enabled': True,
+                },
+            }
+            chosen = presets_map.get(preset, {})
+            if chosen:
+                if training_manager.update_config(chosen, st.session_state.get('hf_token')):
+                    st.info(f"Loaded the '{preset}' preset. You can further customize the settings below.")
+                else:
+                    st.warning("Could not apply preset while training is active.")
+    except Exception:
+        pass
+
     # Layout selector: keep advanced as default to preserve familiarity
     layout_mode = st.radio("Layout", ["Advanced", "Guided"], horizontal=True, index=0)
     if layout_mode == "Guided":
@@ -298,15 +340,15 @@ def render_configuration():
             col_data1, col_data2 = st.columns(2)
             with col_data1:
                 data_source = st.selectbox("Data Source", ["hf", "local"], index=["hf","local"].index("local" if str(yaml_config.data.train_file).startswith((".", "/", "\\")) else "hf"), help="Purpose: Choose dataset location. 'hf' for hub datasets, 'local' for files on disk. Pipeline role: Controls data ingestion during preprocessing.")
-                train_path = st.text_input("Training Data Path", value=yaml_config.data.train_file if data_source == "local" else "", placeholder="path/to/train.jsonl or dataset dir", help="Purpose: Path or HF dataset name for training data when using local. Range: Valid path or directory. Pipeline role: Primary corpus for fine-tuning.")
-                val_path = st.text_input("Validation Data Path", value=yaml_config.data.validation_file if data_source == "local" else "", placeholder="optional path/to/val.jsonl", help="Purpose: Optional validation split for periodic evaluation. Range: Valid path or empty. Pipeline role: Monitors generalization during training.")
+                train_path = st.text_input("Training Data Path", value=yaml_config.data.train_file if data_source == "local" else "", placeholder="path/to/train.jsonl or dataset dir", help="The local path to the training data when using 'local' data source. Accepts JSONL/CSV/Parquet or a directory.")
+                val_path = st.text_input("Validation Data Path", value=yaml_config.data.validation_file if data_source == "local" else "", placeholder="optional path/to/val.jsonl", help="Optional local path to validation data for evaluation. Leave blank to disable periodic evaluation.")
                 _popover(
                     "ℹ️ Data Source & Paths",
                     "Purpose: Configure where data comes from and paths.\n\n- 'hf' uses hub datasets; 'local' uses files/dirs\n- Train path: required for 'local'\n- Val path: optional for evaluation."
                 )
             with col_data2:
-                max_seq_length_adv = st.number_input("Max Sequence Length", value=yaml_config.model.max_length or 0, min_value=0, step=16, help="Purpose: Maximum tokens per sample fed to the model. Typical range: 512-4096 depending on model. Pipeline role: Affects memory usage and truncation.")
-                attn_impl_adv = st.text_input("Attention Implementation", value=yaml_config.model.attn_implementation, help="Purpose: Backend implementation for attention (e.g., flash, sdpa). Range: Depending on model/backend. Pipeline role: Performance/memory trade-offs during forward/backward passes.")
+                max_seq_length_adv = st.number_input("Max Sequence Length", value=yaml_config.model.max_length or 0, min_value=0, step=16, help="The maximum number of tokens per example. Larger values increase memory use but capture more context.")
+                attn_impl_adv = st.text_input("Attention Implementation", value=yaml_config.model.attn_implementation, help="Attention backend: 'auto', 'flash', 'sdpa', etc. Choose 'auto' unless you know your hardware supports a specific backend.")
                 _popover(
                     "ℹ️ Model Limits",
                     "Purpose: Control sequence length and attention backend.\n\n- Max seq length: 512–4096 typical\n- Attention impl: auto/flash/sdpa depending on hardware."
@@ -318,12 +360,12 @@ def render_configuration():
         with col1:
             learning_rate = st.number_input(
                 "Learning Rate",
-                min_value=0.0001,
+                min_value=0.000001,
                 max_value=0.1,
                 value=config['learning_rate'],
-                step=0.0001,
-                format="%.4f",
-                help="Purpose: Controls step size for optimizer updates. Typical range: 1e-5 to 1e-3 for LoRA/QLoRA fine-tuning. Pipeline role: Affects training stability and convergence during optimization."
+                step=0.000001,
+                format="%.6f",
+                help="The initial learning rate for the optimizer. Typical: 1e-5 – 1e-3 for fine-tuning."
             )
             _popover(
                 "ℹ️ Learning Rate",
@@ -333,7 +375,7 @@ def render_configuration():
                 "Batch Size",
                 options=[1, 2, 4, 8, 16, 32],
                 index=[1, 2, 4, 8, 16, 32].index(config['batch_size']),
-                help="Purpose: Number of samples per optimizer step. Typical range: 1-4 for QLoRA on 7B models; higher if VRAM permits. Pipeline role: Impacts memory usage and gradient noise; combined with gradient accumulation for effective batch size."
+                help="Samples per optimizer step. Larger batch size may require more VRAM."
             )
             _popover(
                 "ℹ️ Batch Size",
@@ -361,7 +403,7 @@ def render_configuration():
                 "Optimizer",
                 options=optimizer_options,
                 index=optimizer_index,
-                help="Purpose: Optimization algorithm for training. Typical: paged_adamw_8bit for QLoRA, adamw_torch for full precision; adafactor for large-scale memory efficiency. Pipeline role: Governs parameter updates."
+                help="The optimizer to use for training. 'paged_adamw_32bit' is recommended for memory efficiency."
             )
             _popover(
                 "ℹ️ Optimizer",

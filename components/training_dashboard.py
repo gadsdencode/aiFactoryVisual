@@ -338,21 +338,43 @@ def render_training_dashboard():
     with tabs[1]:
         st.subheader("🧭 Live View")
         if status['active'] and not status['paused']:
-            st.info(f"🔄 Epoch {status['current_epoch']}: Training in progress...")
+            st.info(f"🔄 {status.get('phase', 'RUNNING')} • Epoch {status['current_epoch']}: Training in progress...")
         elif status['paused']:
             st.warning(f"⏸️ Epoch {status['current_epoch']}: Training paused")
         elif status['current_epoch'] > 0:
             st.success(f"✅ Last completed epoch: {status['current_epoch']}")
         else:
             st.info("⏳ Training not started yet")
+
+        # Recent metrics preview table
         if not training_data.empty:
             cols = [c for c in ['step','epoch','train_loss','val_loss','grad_norm','learning_rate','timestamp'] if c in training_data.columns]
             mini = training_data[cols].tail(8).copy()
             if 'timestamp' in mini.columns:
                 mini['timestamp'] = mini['timestamp'].dt.strftime('%H:%M:%S')
             st.dataframe(mini, width='stretch')
-        logs_text = training_manager.get_logs()
-        st.text_area("Logs", logs_text or "", height=220, key="logs_tab_textarea")
+
+        # Interactive log viewer
+        st.subheader("📝 Training Logs")
+        log_level = st.selectbox("Filter by log level", ["ALL", "INFO", "WARNING", "ERROR"], index=0)
+
+        logs_text = training_manager.get_logs() or ""
+        if log_level != "ALL":
+            level_prefix = {
+                'INFO': ['INFO', '[INFO]'],
+                'WARNING': ['WARNING', 'WARN', '[WARN]', '[WARNING]'],
+                'ERROR': ['ERROR', 'ERR', '[ERROR]']
+            }[log_level]
+            filtered_lines = []
+            for line in logs_text.splitlines():
+                upper = line.upper()
+                if any(token in upper for token in level_prefix):
+                    filtered_lines.append(line)
+            logs_text = "\n".join(filtered_lines)
+
+        log_container = st.empty()
+        with log_container:
+            st.text_area("Logs", logs_text, height=300, key="logs_tab_textarea")
 
     # System tab: hardware snapshot and final metrics
     with tabs[2]:
@@ -446,6 +468,8 @@ def display_training_dashboard():
             pass
     elif final_status == "FAILED":
         status_placeholder.error("Training failed. Check logs below.")
+        with st.expander("Show Error Details"):
+            st.code(manager.get_logs(), language='bash')
     else:
         status_placeholder.info("Training is not running.")
 
