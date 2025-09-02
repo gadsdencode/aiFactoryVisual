@@ -60,35 +60,51 @@ def _render_configuration_compact():
                 )
 
     with st.expander("⚙️ Training Hyperparameters", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            learning_rate = st.number_input(
-                "Learning Rate",
-                min_value=1e-6, max_value=1e-1,
-                value=float(cfg.get('learning_rate', 2e-4)),
-                format="%.1e",
-                help="Optimizer step size. Typical 1e-5 – 1e-3 for fine-tuning."
-            )
-            max_epochs = st.number_input(
-                "Number of Epochs",
-                min_value=1, max_value=200,
-                value=int(cfg.get('max_epochs', 1)),
-                step=1,
-                help="Total training epochs to perform."
-            )
-        with col2:
-            batch_size = st.select_slider(
-                "Batch Size",
-                options=[1, 2, 4, 8, 16, 32],
-                value=int(cfg.get('batch_size', 2)),
-                help="Samples per optimizer step."
-            )
-            optimizer = st.selectbox(
-                "Optimizer",
-                ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"],
-                index=max(0, ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"].index(str(cfg.get('optimizer', 'paged_adamw_8bit'))) if str(cfg.get('optimizer', 'paged_adamw_8bit')) in ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"] else 1),
-                help="Optimization algorithm."
-            )
+        # Outcome-oriented selection maps to recommended hyperparameters
+        goal = st.selectbox(
+            "What is your primary goal?",
+            [
+                "Fastest Training",
+                "Best Possible Accuracy",
+                "Balance of Speed and Accuracy",
+                "Low Memory Usage",
+            ],
+        )
+
+        goal_presets = {
+            # Mirrors existing presets where applicable
+            "Fastest Training": {"learning_rate": 5e-4, "batch_size": 2, "max_epochs": 1},
+            "Best Possible Accuracy": {"learning_rate": 1e-4, "batch_size": 2, "max_epochs": 3},  # maps to "Highest Accuracy"
+            "Balance of Speed and Accuracy": {"learning_rate": 2e-4, "batch_size": 2, "max_epochs": 2},
+            "Low Memory Usage": {"learning_rate": 2e-4, "batch_size": 1, "max_epochs": 1},  # maps to "Low Memory"
+        }
+
+        selected = goal_presets.get(goal, {
+            "learning_rate": float(cfg.get('learning_rate', 2e-4)),
+            "batch_size": int(cfg.get('batch_size', 2)),
+            "max_epochs": int(cfg.get('max_epochs', 1)),
+        })
+
+        derived_learning_rate = float(selected["learning_rate"])
+        derived_batch_size = int(selected["batch_size"])
+        derived_max_epochs = int(selected["max_epochs"])
+
+        # Show selected hyperparameters as non-editable metrics
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric("Learning Rate", f"{derived_learning_rate:.1e}")
+        with m2:
+            st.metric("Number of Epochs", f"{derived_max_epochs}")
+        with m3:
+            st.metric("Batch Size", f"{derived_batch_size}")
+
+        # Keep optimizer editable to preserve existing functionality
+        optimizer = st.selectbox(
+            "Optimizer",
+            ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"],
+            index=max(0, ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"].index(str(cfg.get('optimizer', 'paged_adamw_8bit'))) if str(cfg.get('optimizer', 'paged_adamw_8bit')) in ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"] else 1),
+            help="Optimization algorithm."
+        )
 
     with st.expander("Advanced Options"):
         st.write("Further configuration options can be added here as needed.")
@@ -111,9 +127,9 @@ def _render_configuration_compact():
         if st.button("🚀 Start Training", use_container_width=True):
             new_cfg = {
                 'model_name': base_model,
-                'learning_rate': float(learning_rate),
-                'batch_size': int(batch_size),
-                'max_epochs': int(max_epochs),
+                'learning_rate': float(derived_learning_rate),
+                'batch_size': int(derived_batch_size),
+                'max_epochs': int(derived_max_epochs),
                 'optimizer': optimizer,
                 'data_source': ds_source,
             }
