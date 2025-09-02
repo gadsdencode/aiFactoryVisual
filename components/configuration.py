@@ -1,6 +1,11 @@
 import streamlit as st
 import json
 from backend.training_manager import get_training_manager
+from typing import Optional
+try:
+    from backend.config import AppConfig as _AppConfig  # for type hints only
+except Exception:
+    _AppConfig = None  # type: ignore
 from backend.huggingface_integration import get_hf_manager
 
 def _popover(trigger_label: str, body_md: str) -> None:
@@ -16,10 +21,120 @@ def _popover(trigger_label: str, body_md: str) -> None:
         with st.expander(trigger_label):
             st.markdown(body_md)
 
+def _render_configuration_compact():
+    """Guided configuration using expandable sections and clean layout.
+
+    Preserves existing config keys; does not remove any features.
+    """
+    st.header("🔬 Model Training Configuration")
+    st.write("Set up parameters for your training job. Hover over the (?) for more information.")
+
+    training_manager = get_training_manager()
+    cfg = training_manager.get_config()
+    yaml_cfg = training_manager.get_yaml_config()
+
+    with st.expander("🔌 Model & Dataset Configuration", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            # Base model selection
+            base_model = st.text_input(
+                "Base Model",
+                value=cfg.get('model_name', ''),
+                help="Select or enter the foundational model to fine-tune (HF repo id)."
+            )
+        with col2:
+            # Dataset name or local path
+            data_source = cfg.get('data_source', 'hf')
+            ds_source = st.selectbox("Data Source", options=["hf", "local"], index=["hf","local"].index(data_source))
+            if ds_source == 'hf':
+                dataset_name = st.text_input(
+                    "Dataset Name",
+                    value=str(getattr(yaml_cfg.data, 'train_file', '') if not str(getattr(yaml_cfg.data, 'train_file', '')).startswith((".", "/", "\\")) else ""),
+                    help="Hugging Face dataset id (optional if using local files)."
+                )
+            else:
+                dataset_name = st.text_input(
+                    "Training Data Path",
+                    value=str(getattr(yaml_cfg.data, 'train_file', '')),
+                    help="Local path to training data (e.g., JSONL)."
+                )
+
+    with st.expander("⚙️ Training Hyperparameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            learning_rate = st.number_input(
+                "Learning Rate",
+                min_value=1e-6, max_value=1e-1,
+                value=float(cfg.get('learning_rate', 2e-4)),
+                format="%.1e",
+                help="Optimizer step size. Typical 1e-5 – 1e-3 for fine-tuning."
+            )
+            max_epochs = st.number_input(
+                "Number of Epochs",
+                min_value=1, max_value=200,
+                value=int(cfg.get('max_epochs', 1)),
+                step=1,
+                help="Total training epochs to perform."
+            )
+        with col2:
+            batch_size = st.select_slider(
+                "Batch Size",
+                options=[1, 2, 4, 8, 16, 32],
+                value=int(cfg.get('batch_size', 2)),
+                help="Samples per optimizer step."
+            )
+            optimizer = st.selectbox(
+                "Optimizer",
+                ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"],
+                index=max(0, ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"].index(str(cfg.get('optimizer', 'paged_adamw_8bit'))) if str(cfg.get('optimizer', 'paged_adamw_8bit')) in ["paged_adamw_32bit", "paged_adamw_8bit", "adamw_torch", "adafactor"] else 1),
+                help="Optimization algorithm."
+            )
+
+    with st.expander("Advanced Options"):
+        st.write("Further configuration options can be added here as needed.")
+        # surfaced advanced settings preview
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.caption("Quantization")
+            st.write(f"4-bit: {getattr(yaml_cfg.quantization, 'enabled', True)}")
+        with col_b:
+            st.caption("LoRA")
+            st.write(f"r={getattr(yaml_cfg.lora, 'r', 32)}, α={getattr(yaml_cfg.lora, 'alpha', 32)}")
+        with col_c:
+            st.caption("Logging")
+            st.write(f"Every {getattr(yaml_cfg.training, 'logging_steps', 25)} steps")
+
+    st.divider()
+
+    col_btn, _ = st.columns([1, 2])
+    with col_btn:
+        if st.button("🚀 Start Training", use_container_width=True):
+            new_cfg = {
+                'model_name': base_model,
+                'learning_rate': float(learning_rate),
+                'batch_size': int(batch_size),
+                'max_epochs': int(max_epochs),
+                'optimizer': optimizer,
+                'data_source': ds_source,
+            }
+            # Save updates then start training
+            hf_token = st.session_state.get('hf_token', None)
+            training_manager.update_config(new_cfg, hf_token)
+            if training_manager.start_training():
+                st.session_state.training_started = True
+                st.toast("🚀 Training started!", icon="✅")
+                st.rerun()
+
+
 def render_configuration():
     st.title("⚙️ Configuration")
     st.markdown("Manage training parameters and model configurations")
     st.info("🤗 **HuggingFace Integration Enabled**: You can now use any compatible LLM from the HuggingFace model hub!")
+
+    # Layout selector: keep advanced as default to preserve familiarity
+    layout_mode = st.radio("Layout", ["Advanced", "Guided"], horizontal=True, index=0)
+    if layout_mode == "Guided":
+        return _render_configuration_compact()
 
     # Get current configuration and helpers
     training_manager = get_training_manager()
@@ -463,6 +578,16 @@ def render_configuration():
             validation_results.append(("ℹ️", "Consider standard LoRA r=32, alpha=32 configuration"))
         for icon, message in validation_results:
             st.write(f"{icon} {message}")
+
+        st.markdown("---")
+        st.subheader("🚀 Actions")
+        # Start training from configuration page for convenience
+        if st.button("▶️ Start Training", type="primary"):
+            if training_manager.start_training():
+                st.toast("🚀 Training has started! Navigate to the Dashboard to monitor progress.", icon="✅")
+                st.session_state['training_started'] = True
+            else:
+                st.warning("Training is already active!")
 
 
 def configuration_sidebar():

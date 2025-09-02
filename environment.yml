@@ -21,3 +21,4 @@ dependencies:
   - pip:
       - trl>=0.9
       - bitsandbytes>=0.43  # optional; remove if not using 4-bit quantization
+      - streamlit-option-menu
