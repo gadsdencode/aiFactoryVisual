@@ -4,6 +4,118 @@ from datasets import load_dataset, Dataset, load_from_disk, DatasetDict
 from backend.config import AppConfig
 import streamlit as st
 
+# -----------------------------------------------------------------------------
+# Tokenization with on-disk caching
+# -----------------------------------------------------------------------------
+def tokenize_and_cache_dataset(_config: AppConfig, tokenizer, dataset: Dataset) -> Dataset:
+    """
+    Tokenize a dataset and cache the tokenized result on disk for reuse.
+
+    The cache directory name is derived from dataset identity, tokenizer name,
+    configured text column, and max_seq_length (plus dataset fingerprint/size
+    to avoid collisions across splits or local files).
+
+    Args:
+        _config (AppConfig): App configuration.
+        tokenizer: Hugging Face tokenizer instance.
+        dataset (Dataset): Raw text dataset containing the configured text column.
+
+    Returns:
+        Dataset: Tokenized dataset (columns: input_ids, attention_mask, labels),
+                 with torch formatting applied when possible.
+    """
+    try:
+        import hashlib
+        import os
+        from datasets import load_from_disk
+
+        # Resolve parameters for tokenization
+        try:
+            max_seq_len = int(getattr(_config.training, 'max_seq_length', 1024) or 1024)
+        except Exception:
+            max_seq_len = 1024
+        text_field = getattr(_config, 'text_column', 'text') or 'text'
+
+        # Derive a unique, stable cache key
+        data_source = getattr(_config, 'data_source', 'hf')
+        dataset_desc = (
+            getattr(_config, 'dataset_name', None)
+            if data_source != 'local'
+            else getattr(_config, 'local_train_path', None)
+        ) or 'dataset'
+        split = getattr(_config, 'dataset_split', 'train') or 'train'
+        tok_name = getattr(tokenizer, 'name_or_path', 'tokenizer')
+        dataset_fingerprint = getattr(dataset, '_fingerprint', '') or ''
+        dataset_size = 0
+        try:
+            dataset_size = int(len(dataset))
+        except Exception:
+            dataset_size = 0
+
+        cache_key_src = f"{dataset_desc}|{split}|{tok_name}|L={max_seq_len}|col={text_field}|fp={dataset_fingerprint}|n={dataset_size}"
+        cache_key = hashlib.sha1(cache_key_src.encode('utf-8')).hexdigest()[:16]
+        cache_root = os.path.join('.cache', 'tokenized_datasets')
+        os.makedirs(cache_root, exist_ok=True)
+        cache_dir = os.path.join(cache_root, cache_key)
+
+        # Attempt to load from cache
+        if os.path.exists(cache_dir):
+            try:
+                tokenized_ds = load_from_disk(cache_dir)
+                try:
+                    tokenized_ds = tokenized_ds.with_format("torch", columns=["input_ids", "attention_mask", "labels"])  # type: ignore
+                except Exception:
+                    pass
+                st.info(f"Loaded tokenized dataset from cache: {cache_dir}")
+                return tokenized_ds
+            except Exception as e:
+                st.warning(f"Failed to load tokenized cache, re-tokenizing. Reason: {e}")
+
+        # Configure multiprocessing for tokenization
+        desired_proc = int(getattr(_config.training, 'tokenizer_num_proc', None) or 0)
+        if desired_proc <= 0:
+            desired_proc = max(1, min(os.cpu_count() or 1, 8))
+        try:
+            os.environ["TOKENIZERS_PARALLELISM"] = "true" if desired_proc > 1 else "false"
+        except Exception:
+            pass
+
+        # Define batch tokenizer
+        def _tokenize_batch(batch):
+            texts = batch[text_field]
+            enc = tokenizer(
+                texts,
+                truncation=True,
+                max_length=max_seq_len,
+                padding="max_length",
+                return_attention_mask=True,
+            )
+            enc["labels"] = enc["input_ids"].copy()
+            return enc
+
+        remove_cols = [c for c in dataset.column_names if c != text_field]
+        try:
+            tokenized_ds = dataset.map(_tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=remove_cols)
+        except Exception:
+            tokenized_ds = dataset.map(_tokenize_batch, batched=True, num_proc=1, remove_columns=remove_cols)
+
+        # Save to disk for next runs
+        try:
+            tokenized_ds.save_to_disk(cache_dir)
+            st.info(f"Saved tokenized dataset to cache: {cache_dir}")
+        except Exception:
+            pass
+
+        try:
+            tokenized_ds = tokenized_ds.with_format("torch", columns=["input_ids", "attention_mask", "labels"])  # type: ignore
+        except Exception:
+            pass
+        return tokenized_ds
+    except Exception as e:
+        st.error(f"Tokenization and caching failed: {e}")
+        # Fallback: return the original dataset to avoid hard crash
+        return dataset
+
 # Disk-cached dataset preparation suitable for large corpora
 def load_and_prepare_dataset(_config: AppConfig) -> Dataset:
     """
