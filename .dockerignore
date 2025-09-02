@@ -1,0 +1,32 @@
+# Ignore virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore IDE and editor directories
+.vscode/
+.idea/
+*.swp
+
+# Ignore git directory
+.git/
+
+# Ignore dataset cache
+.cache/
+
+# Ignore Replit and other platform-specific files
+.replit
+replit.nix
+.replit.old
+
+# Ignore build artifacts
+dist/
+build/
+*.egg-info/

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  aifactory-app:
+    # Build the Docker image from the Dockerfile in the current directory
+    build: .
+    # Set a container name for easier management
+    container_name: aifactory_visual
+    # Map port 8501 on the host to port 8501 in the container
+    ports:
+      - "8501:8501"
+    # Optionally, you can mount the current directory for live-reloading during development.
+    # For production, it's better to rely on the files copied during the build.
+    # volumes:
+    #   - .:/app
