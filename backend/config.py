@@ -23,10 +23,7 @@ class LoRAConfig(BaseModel):
     dropout: float = 0.1
     bias: str = "none"
     task_type: str = "CAUSAL_LM"
-    target_modules: Optional[List[str]] = Field(default_factory=lambda: [
-        "q_proj", "k_proj", "v_proj", "o_proj",
-        "gate_proj", "up_proj", "down_proj", "lm_head"
-    ])
+    target_modules: Optional[List[str]] = None
 
 class TrainingConfig(BaseModel):
     output_dir: str = "./results"
