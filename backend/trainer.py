@@ -11,11 +11,11 @@ from transformers import Trainer
 from backend.config import AppConfig
 from backend.huggingface_integration import hf_login, push_to_hub
 from backend.metrics import compute_token_accuracy
-import streamlit as st
 from threading import Thread, Event
 import queue
 from transformers import TrainerCallback, TrainingArguments
 from backend.data import tokenize_and_cache_dataset
+from backend.callbacks import BaseCallback, ConsoleCallback
 
 class TrainingProgressCallback(TrainerCallback):
     """Callback that forwards logs/metrics to a TrainingManager instance."""
@@ -63,17 +63,17 @@ class TrainingProgressCallback(TrainerCallback):
         except Exception:
             pass
 
-class StreamlitCallback(TrainerCallback):
-    """TrainerCallback that streams logs/metrics to Streamlit via queues and supports stopping."""
+class StreamlitCallback(BaseCallback):
+    """Streams logs/metrics to Streamlit via queues and supports stopping."""
     def __init__(self, log_queue: queue.Queue, metrics_queue: queue.Queue, stop_event: "Event | None" = None):
         self.log_queue = log_queue
         self.metrics_queue = metrics_queue
         self.stop_event = stop_event
 
-    def on_train_begin(self, args: TrainingArguments, state, control, **kwargs):
+    def on_train_begin(self, args, state, control, **kwargs):
         self.log_queue.put("--- Training started ---")
 
-    def on_log(self, args: TrainingArguments, state, control, logs=None, **kwargs):
+    def on_log(self, args, state, control, logs=None, **kwargs):
         if logs:
             # Push structured metrics
             metric_data = {
@@ -110,13 +110,13 @@ class StreamlitCallback(TrainerCallback):
         if self.stop_event is not None and self.stop_event.is_set():
             control.should_training_stop = True
 
-    def on_epoch_begin(self, args: TrainingArguments, state, control, **kwargs):
+    def on_epoch_begin(self, args, state, control, **kwargs):
         try:
             self.log_queue.put(f"Epoch {int(state.epoch) if state.epoch is not None else 0} begin")
         except Exception:
             self.log_queue.put("Epoch begin")
 
-    def on_step_begin(self, args: TrainingArguments, state, control, **kwargs):
+    def on_step_begin(self, args, state, control, **kwargs):
         # Emit a per-step start log to indicate liveness
         try:
             self.log_queue.put(f"Step {state.global_step + 1} begin")
@@ -124,7 +124,7 @@ class StreamlitCallback(TrainerCallback):
         except Exception:
             self.log_queue.put("Step begin")
 
-    def on_step_end(self, args: TrainingArguments, state, control, **kwargs):
+    def on_step_end(self, args, state, control, **kwargs):
         # Emit lightweight step heartbeat to drive UI progress
         try:
             hb = {
@@ -142,9 +142,50 @@ class StreamlitCallback(TrainerCallback):
         if self.stop_event is not None and self.stop_event.is_set():
             control.should_training_stop = True
 
-    def on_train_end(self, args: TrainingArguments, state, control, **kwargs):
+    def on_train_end(self, args, state, control, **kwargs):
         self.log_queue.put("--- Training finished ---")
 
+
+class GenericCallbackAdapter(TrainerCallback):
+    """Adapter that bridges a framework-agnostic BaseCallback to transformers.TrainerCallback."""
+    def __init__(self, base_callback: BaseCallback):
+        self.base_callback = base_callback
+
+    def on_train_begin(self, args: TrainingArguments, state, control, **kwargs):
+        try:
+            self.base_callback.on_train_begin(args, state, control, **kwargs)
+        except Exception:
+            pass
+
+    def on_log(self, args: TrainingArguments, state, control, logs=None, **kwargs):
+        try:
+            self.base_callback.on_log(args, state, control, logs=logs, **kwargs)
+        except Exception:
+            pass
+
+    def on_epoch_begin(self, args: TrainingArguments, state, control, **kwargs):
+        try:
+            self.base_callback.on_epoch_begin(args, state, control, **kwargs)
+        except Exception:
+            pass
+
+    def on_step_begin(self, args: TrainingArguments, state, control, **kwargs):
+        try:
+            self.base_callback.on_step_begin(args, state, control, **kwargs)
+        except Exception:
+            pass
+
+    def on_step_end(self, args: TrainingArguments, state, control, **kwargs):
+        try:
+            self.base_callback.on_step_end(args, state, control, **kwargs)
+        except Exception:
+            pass
+
+    def on_train_end(self, args: TrainingArguments, state, control, **kwargs):
+        try:
+            self.base_callback.on_train_end(args, state, control, **kwargs)
+        except Exception:
+            pass
 
 def create_sft_config(config: AppConfig, train_dataset_size: int) -> SFTConfig:
     """Creates and returns an SFTConfig object from the application configuration.
@@ -319,6 +360,181 @@ def build_trainer(model, tokenizer, sft_config: SFTConfig, tokenized_train, toke
     return trainer
 
 
+def setup_training(config, model, tokenizer, dataset, eval_dataset, log_queue=None, metrics_queue=None, stop_event=None, manager=None):
+    """Prepares all components for the training loop: auth, configs, tokenization, collator, callbacks, and trainer.
+
+    Returns (trainer, sft_config).
+    """
+    # Local logging helper honoring manager first, then log_queue
+    def _emit_log(message: str):
+        try:
+            if manager is not None:
+                manager.add_log(str(message))
+            elif log_queue is not None:
+                log_queue.put(message)
+        except Exception:
+            pass
+
+    # HF login if needed
+    if getattr(config.huggingface, 'push_to_hub', False):
+        hf_login(getattr(config.huggingface, 'hub_token', None))
+
+    # Build training arguments / SFTConfig
+    try:
+        train_size = int(len(dataset))
+    except Exception:
+        train_size = 0
+    original_optim = getattr(config.training, 'optim', 'adamw_torch') or 'adamw_torch'
+    needs_bnb = ('8bit' in str(original_optim)) or ('paged' in str(original_optim))
+    sft_config = create_sft_config(config, train_size)
+    if needs_bnb and sft_config.optim != original_optim:
+        _emit_log(f"Optimizer '{original_optim}' requires bitsandbytes. Falling back to '{sft_config.optim}'.")
+
+    _emit_log(f"Using optimizer: {sft_config.optim}; lr: {sft_config.learning_rate}")
+    _emit_log(
+        f"Resolved hparams -> epochs:{sft_config.num_train_epochs}, per_device_bs:{sft_config.per_device_train_batch_size}, "
+        f"grad_accum:{sft_config.gradient_accumulation_steps}, warmup_ratio:{sft_config.warmup_ratio}, weight_decay:{sft_config.weight_decay}, "
+        f"max_grad_norm:{sft_config.max_grad_norm}, logging_steps:{sft_config.logging_steps}, save_steps:{sft_config.save_steps}"
+    )
+
+    # Derived step counts for logging
+    steps_per_epoch = max(1, math.ceil(max(1, train_size) / max(1, sft_config.per_device_train_batch_size)))
+    opt_steps_per_epoch = max(1, math.floor(steps_per_epoch / max(1, sft_config.gradient_accumulation_steps)))
+    derived_total_steps = max(1, opt_steps_per_epoch * max(1, sft_config.num_train_epochs))
+    final_max_steps = int(sft_config.max_steps)
+    _emit_log(
+        f"Derived steps_per_epoch={steps_per_epoch}, opt_steps_per_epoch={opt_steps_per_epoch}, total_steps={derived_total_steps}, using max_steps={final_max_steps}"
+    )
+
+    # Select a base callback implementation (Streamlit if queues provided, else Console)
+    if log_queue is not None or metrics_queue is not None:
+        base_cb: BaseCallback = StreamlitCallback(
+            log_queue if log_queue is not None else queue.Queue(),
+            metrics_queue if metrics_queue is not None else queue.Queue(),
+            stop_event,
+        )
+    else:
+        base_cb = ConsoleCallback()
+    adapter_cb = GenericCallbackAdapter(base_cb)
+
+    # Inform about tokenization start (can take time)
+    _emit_log("Preparing/tokenizing datasets...")
+
+    # Tokenize with caching
+    tokenized_train, tokenized_eval = prepare_tokenized_datasets(
+        config, tokenizer, dataset, eval_dataset, emit_log=_emit_log
+    )
+
+    # Ensure torch format (helper already attempts this; keep safe fallback)
+    try:
+        tokenized_train = tokenized_train.with_format("torch", columns=["input_ids","attention_mask","labels"])  # type: ignore
+        if tokenized_eval is not None:
+            tokenized_eval = tokenized_eval.with_format("torch", columns=["input_ids","attention_mask","labels"])  # type: ignore
+    except Exception:
+        pass
+
+    # Data collator
+    data_collator = create_data_collator(tokenizer)
+
+    # Optional perf tweaks
+    try:
+        torch.backends.cudnn.benchmark = True
+    except Exception:
+        pass
+
+    # Ensure model in train mode and LoRA params require grad
+    try:
+        model.train()
+        for p in model.parameters():
+            if getattr(p, 'requires_grad', None) is False and hasattr(p, 'is_lora_param') and p.is_lora_param:  # type: ignore
+                p.requires_grad = True
+    except Exception:
+        pass
+
+    # Build trainer
+    trainer = build_trainer(
+        model=model,
+        tokenizer=tokenizer,
+        sft_config=sft_config,
+        tokenized_train=tokenized_train,
+        tokenized_eval=tokenized_eval,
+        data_collator=data_collator,
+        callbacks=[adapter_cb],
+    )
+
+    _emit_log("Trainer initialized. Starting training loop...")
+    try:
+        meta = {
+            'meta': 'progress',
+            'total_steps': final_max_steps,
+            'logging_steps': sft_config.logging_steps,
+        }
+        _emit_log(meta)
+    except Exception:
+        pass
+
+    return trainer, sft_config
+
+
+def execute_training_loop(trainer, sft_config: SFTConfig, stop_event, manager=None):
+    """Executes the main training loop and handles final evaluation. Returns final_eval dict or {}."""
+    def _emit_log(message: str):
+        try:
+            if manager is not None:
+                manager.add_log(str(message))
+        except Exception:
+            pass
+
+    _emit_log("--- Starting Training ---")
+
+    if stop_event is None:
+        if manager is not None:
+            try:
+                trainer.add_callback(TrainingProgressCallback(manager))
+            except Exception:
+                # Fallback to appending to callbacks list
+                try:
+                    trainer.callback_handler.callbacks.append(TrainingProgressCallback(manager))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        trainer.train()
+    else:
+        try:
+            trainer.create_optimizer_and_scheduler(num_training_steps=int(sft_config.max_steps))
+        except Exception:
+            pass
+        if manager is not None:
+            try:
+                trainer.add_callback(TrainingProgressCallback(manager))
+            except Exception:
+                try:
+                    trainer.callback_handler.callbacks.append(TrainingProgressCallback(manager))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        trainer.train(resume_from_checkpoint=None)
+        if stop_event.is_set():
+            try:
+                trainer.control.should_training_stop = True
+            except Exception:
+                pass
+
+    _emit_log("--- Training Finished ---")
+
+    # Evaluate if we have eval data
+    final_eval = {}
+    try:
+        has_eval = getattr(trainer, 'eval_dataset', None) is not None
+        if has_eval:
+            result = trainer.evaluate()
+            if isinstance(result, dict):
+                final_eval = result
+                _emit_log(f"Final evaluation: {final_eval}")
+    except Exception:
+        pass
+
+    return final_eval
+
+
 def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_queue=None, metrics_queue=None, stop_event=None, manager=None):
     """
     This function runs the training process and is intended to be called in a separate thread.
@@ -326,162 +542,76 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
     success = True
     final_eval: dict | None = None
     try:
-        def _emit_log(message: str):
-            try:
-                if manager is not None:
-                    manager.add_log(str(message))
-                elif log_queue is not None:
-                    log_queue.put(message)
-            except Exception:
-                pass
-
-        # --- Hugging Face Login ---
-        if config.huggingface.push_to_hub:
-            hf_login(config.huggingface.hub_token)
-
-        # --- Training Arguments / SFTConfig ---
-        try:
-            train_size = int(len(dataset))
-        except Exception:
-            train_size = 0
-        original_optim = getattr(config.training, 'optim', 'adamw_torch') or 'adamw_torch'
-        needs_bnb = ('8bit' in str(original_optim)) or ('paged' in str(original_optim))
-        sft_config = create_sft_config(config, train_size)
-        if needs_bnb and sft_config.optim != original_optim:
-            _emit_log(f"Optimizer '{original_optim}' requires bitsandbytes. Falling back to '{sft_config.optim}'.")
-
-        _emit_log(f"Using optimizer: {sft_config.optim}; lr: {sft_config.learning_rate}")
-        _emit_log(
-            f"Resolved hparams -> epochs:{sft_config.num_train_epochs}, per_device_bs:{sft_config.per_device_train_batch_size}, "
-            f"grad_accum:{sft_config.gradient_accumulation_steps}, warmup_ratio:{sft_config.warmup_ratio}, weight_decay:{sft_config.weight_decay}, "
-            f"max_grad_norm:{sft_config.max_grad_norm}, logging_steps:{sft_config.logging_steps}, save_steps:{sft_config.save_steps}"
-        )
-
-        # Derive informative per-epoch step counts for logging
-        steps_per_epoch = max(1, math.ceil(max(1, train_size) / max(1, sft_config.per_device_train_batch_size)))
-        opt_steps_per_epoch = max(1, math.floor(steps_per_epoch / max(1, sft_config.gradient_accumulation_steps)))
-        derived_total_steps = max(1, opt_steps_per_epoch * max(1, sft_config.num_train_epochs))
-        final_max_steps = int(sft_config.max_steps)
-        _emit_log(f"Derived steps_per_epoch={steps_per_epoch}, opt_steps_per_epoch={opt_steps_per_epoch}, total_steps={derived_total_steps}, using max_steps={final_max_steps}")
-
-        # --- Initialize Trainer ---
-        streamlit_callback = StreamlitCallback(metrics_queue if metrics_queue is not None else queue.Queue(), metrics_queue if metrics_queue is not None else queue.Queue(), stop_event)
-
-        # Default max_seq_length when not provided
-        max_seq_len = sft_config.max_seq_length
-
-        # compute_token_accuracy imported from backend.metrics
-
-        # Early log to indicate tokenization/preparation can take time
-        _emit_log("Preparing/tokenizing datasets...")
-
-        # Tokenize datasets with on-disk caching using helper
-        tokenized_train, tokenized_eval = prepare_tokenized_datasets(config, tokenizer, dataset, eval_dataset, emit_log=_emit_log)
-
-        # Ensure torch format handled by helper; keep safe fallback
-        try:
-            tokenized_train = tokenized_train.with_format("torch", columns=["input_ids","attention_mask","labels"])  # type: ignore
-            if tokenized_eval is not None:
-                tokenized_eval = tokenized_eval.with_format("torch", columns=["input_ids","attention_mask","labels"])  # type: ignore
-        except Exception:
-            pass
-
-        # Use simple collator helper to reduce CPU overhead and avoid padding-induced stalls
-        data_collator = create_data_collator(tokenizer)
-
-        # Enable cudnn benchmarking for faster first iteration on fixed shapes
-        try:
-            torch.backends.cudnn.benchmark = True
-        except Exception:
-            pass
-
-        # Ensure model in training mode and gradients enabled for LoRA adapters
-        try:
-            model.train()
-            for p in model.parameters():
-                # Do not force enable grads for frozen base when using PEFT; only ensure trainable params require grad
-                if getattr(p, 'requires_grad', None) is False and hasattr(p, 'is_lora_param') and p.is_lora_param:  # type: ignore
-                    p.requires_grad = True
-        except Exception:
-            pass
-
-        # Standard SFTTrainer with StreamlitCallback for logging
-        trainer = build_trainer(
+        # Setup all components for training
+        trainer, sft_config = setup_training(
+            config=config,
             model=model,
             tokenizer=tokenizer,
-            sft_config=sft_config,
-            tokenized_train=tokenized_train,
-            tokenized_eval=tokenized_eval,
-            data_collator=data_collator,
-            callbacks=[streamlit_callback],
+            dataset=dataset,
+            eval_dataset=eval_dataset,
+            log_queue=log_queue,
+            metrics_queue=metrics_queue,
+            stop_event=stop_event,
+            manager=manager,
         )
 
-        _emit_log("Trainer initialized. Starting training loop...")
-        # Emit initial META with expected totals (mirrors TrainingManager heuristics)
-        try:
-            meta = {
-                'meta': 'progress',
-                'total_steps': final_max_steps,
-                'logging_steps': sft_config.logging_steps,
-            }
-            _emit_log(meta)
-        except Exception:
-            pass
+        # Execute the training loop and optional evaluation
+        final_eval = execute_training_loop(
+            trainer=trainer,
+            sft_config=sft_config,
+            stop_event=stop_event,
+            manager=manager,
+        )
 
-        # --- Start Training ---
-        _emit_log("--- Starting Training ---")
-        if stop_event is None:
-            # Choose callback based on manager/queues
-            if manager is not None:
-                callbacks = [TrainingProgressCallback(manager)]
-                try:
-                    trainer.callback_handler.callbacks = callbacks  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-            trainer.train()
-        else:
-            # Train with periodic stop checks; ensure scheduler has concrete total steps
+        # Save Model
+        final_output_dir = os.path.join(config.training.output_dir, "final_model")
+        if manager is not None:
             try:
-                trainer.create_optimizer_and_scheduler(num_training_steps=final_max_steps)
+                manager.add_log(f"Saving final model to {final_output_dir}")
             except Exception:
                 pass
-            if manager is not None:
-                callbacks = [TrainingProgressCallback(manager)]
-                try:
-                    trainer.callback_handler.callbacks = callbacks  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-            train_result = trainer.train(resume_from_checkpoint=None)
-            # Built-in callbacks honor control.should_training_stop based on our StreamlitCallback
-            if stop_event.is_set():
-                try:
-                    trainer.control.should_training_stop = True
-                except Exception:
-                    pass
-        _emit_log("--- Training Finished ---")
-
-        # --- Evaluate ---
-        try:
-            if tokenized_eval is not None:
-                final_eval = trainer.evaluate()
-                if isinstance(final_eval, dict):
-                    _emit_log(f"Final evaluation: {final_eval}")
-        except Exception:
-            pass
-
-        # --- Save Model ---
-        final_output_dir = os.path.join(config.training.output_dir, "final_model")
-        _emit_log(f"Saving final model to {final_output_dir}")
+        elif log_queue is not None:
+            try:
+                log_queue.put(f"Saving final model to {final_output_dir}")
+            except Exception:
+                pass
         trainer.model.save_pretrained(final_output_dir)
         tokenizer.save_pretrained(final_output_dir)
-        _emit_log("Model saved successfully.")
+        if manager is not None:
+            try:
+                manager.add_log("Model saved successfully.")
+            except Exception:
+                pass
+        elif log_queue is not None:
+            try:
+                log_queue.put("Model saved successfully.")
+            except Exception:
+                pass
 
-        # --- Push to Hub ---
-        if config.huggingface.push_to_hub:
-            _emit_log("Pushing model to Hugging Face Hub...")
+        # Push to Hub if enabled
+        if getattr(config.huggingface, 'push_to_hub', False):
+            if manager is not None:
+                try:
+                    manager.add_log("Pushing model to Hugging Face Hub...")
+                except Exception:
+                    pass
+            elif log_queue is not None:
+                try:
+                    log_queue.put("Pushing model to Hugging Face Hub...")
+                except Exception:
+                    pass
             push_to_hub(config, model, tokenizer)
-            _emit_log("Push to Hub complete.")
-            
+            if manager is not None:
+                try:
+                    manager.add_log("Push to Hub complete.")
+                except Exception:
+                    pass
+            elif log_queue is not None:
+                try:
+                    log_queue.put("Push to Hub complete.")
+                except Exception:
+                    pass
+
     except Exception as e:
         try:
             import traceback

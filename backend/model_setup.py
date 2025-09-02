@@ -12,6 +12,67 @@ except Exception:
 from backend.config import AppConfig
 import streamlit as st
 
+def find_lora_target_modules(model):
+    """Dynamically finds suitable target modules for LoRA by inspecting the model.
+
+    Heuristics:
+    - Prefer common projection names in attention and MLP blocks across LLaMA/Mistral/Qwen/Gemma/GPT variants
+    - Include fused QKV and GPT2 Conv1D-style projections when present
+    - Fall back to a conservative default if nothing is discovered
+    """
+    names = set()
+    try:
+        import torch.nn as nn  # type: ignore
+        for name, module in model.named_modules():
+            # Linear-like layers commonly targeted by LoRA
+            is_linear = isinstance(module, nn.Linear)
+            is_gpt2_conv1d = (module.__class__.__name__ == 'Conv1D')
+            if not (is_linear or is_gpt2_conv1d):
+                continue
+
+            leaf = name.rsplit('.', 1)[-1]
+            lname = leaf.lower()
+
+            # Direct matches commonly used in HF models
+            if lname in {
+                'q_proj','k_proj','v_proj','o_proj',
+                'gate_proj','up_proj','down_proj',
+                'in_proj','out_proj',
+                'c_attn','c_proj',
+                'query_key_value',  # fused QKV
+            }:
+                names.add(leaf)
+                continue
+
+            # Heuristic matches
+            if lname.endswith('proj'):
+                names.add(leaf)
+                continue
+            if lname in {'fc1','fc2','wi','wo','w1','w2','w3'}:
+                names.add(leaf)
+                continue
+            if ('attn' in name or 'attention' in name) and lname in {'q','k','v','o'}:
+                names.add(leaf)
+                continue
+            if ('mlp' in name or 'ffn' in name or 'feed_forward' in name) and lname in {'w1','w2','w3'}:
+                names.add(leaf)
+                continue
+
+        if not names:
+            model_type = str(getattr(model.config, 'model_type', '')).lower()
+            if model_type in ("llama", "mistral", "qwen", "qwen2", "gemma"):
+                names.update([
+                    "q_proj", "k_proj", "v_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj",
+                ])
+            else:
+                names.update(["q_proj", "k_proj", "v_proj", "o_proj"])
+    except Exception:
+        if not names:
+            names.update(["q_proj", "k_proj", "v_proj", "o_proj"])
+
+    return sorted(names)
+
 def setup_model_and_tokenizer(config: AppConfig):
     """
     Sets up the model and tokenizer for training, including quantization and LoRA.
@@ -115,33 +176,13 @@ def setup_model_and_tokenizer(config: AppConfig):
 
         # --- LoRA Configuration ---
         st.info("Setting up LoRA configuration...")
-        # Determine target modules dynamically if not explicitly set
         target_modules = getattr(config.lora, 'target_modules', None)
-        try:
-            if not target_modules:
-                model_type = str(getattr(model.config, 'model_type', '')).lower()
-                if model_type in ("llama", "mistral", "qwen", "qwen2", "gemma"):
-                    target_modules = [
-                        "q_proj", "k_proj", "v_proj", "o_proj",
-                        "gate_proj", "up_proj", "down_proj"
-                    ]
-                else:
-                    # Fallback: collect common linear projection names
-                    import torch.nn as nn  # type: ignore
-                    names = set()
-                    for name, module in model.named_modules():
-                        if isinstance(module, nn.Linear):
-                            leaf = name.rsplit('.', 1)[-1]
-                            if (leaf.endswith("proj") or leaf in ("in_proj", "out_proj", "fc1", "fc2")):
-                                names.add(leaf)
-                    target_modules = sorted(names) if names else ["q_proj", "k_proj", "v_proj", "o_proj"]
-        except Exception:
-            # Conservative fallback
-            if not target_modules:
-                target_modules = [
-                    "q_proj", "k_proj", "v_proj", "o_proj",
-                    "gate_proj", "up_proj", "down_proj"
-                ]
+        if not target_modules:
+            target_modules = find_lora_target_modules(model)
+            try:
+                st.info(f"Detected LoRA target modules: {target_modules}")
+            except Exception:
+                pass
 
         peft_config = LoraConfig(
             r=config.lora.r,
