@@ -201,6 +201,10 @@ def main():
         # Notify when training completes
         if not status_snapshot.get('active', False) and st.session_state.get('training_started', False):
             st.success("🎉 Training complete! You can now view the final results.")
+            try:
+                st.toast("Training has successfully completed!", icon="✅")
+            except Exception:
+                pass
             st.session_state['training_started'] = False
         if status_snapshot.get('active', False):
             # Periodic refresh independent of queues to ensure UI keeps up

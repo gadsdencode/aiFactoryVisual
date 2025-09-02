@@ -602,6 +602,17 @@ def apply_base_styles(theme='light'):
             background-color: {hover_bg} !important;
             color: {text_color} !important;
         }}
+
+        /* Ensure inner content within dropdown options is readable (idle + hover) */
+        [data-baseweb="menu"] [role="option"] * {{
+            color: {text_color} !important;
+        }}
+        [data-baseweb="menu"] button,
+        [data-baseweb="menu"] a,
+        [data-baseweb="menu"] div {{
+            color: {text_color} !important;
+            background-color: transparent !important;
+        }}
         
         /* More specific targeting for the dropdown */
         div[data-baseweb="popover"] > div {{
@@ -620,6 +631,40 @@ def apply_base_styles(theme='light'):
         
         div[data-baseweb="popover"] li:hover {{
             background-color: {hover_bg} !important;
+            color: {text_color} !important;
+        }}
+
+        /* Popover trigger buttons (our inline info tooltips) */
+        [data-testid="stPopover"] button {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+            box-shadow: {button_shadow} !important;
+        }}
+        [data-testid="stPopover"] button:hover {{
+            background-color: {hover_bg} !important;
+            border-color: var(--primary-color) !important;
+            color: {text_color} !important;
+        }}
+        [data-testid="stPopover"] button:focus {{
+            box-shadow: 0 0 0 2px {focus_color} !important;
+            outline: none !important;
+        }}
+        [data-testid="stPopover"] button * {{
+            color: {text_color} !important;
+            fill: {text_color} !important;
+        }}
+
+        /* Tooltip styling (widget help, hover popups) */
+        [data-baseweb="tooltip"],
+        div[data-baseweb="tooltip"] > div {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 8px !important;
+        }}
+        [data-baseweb="tooltip"] * {{
             color: {text_color} !important;
         }}
         

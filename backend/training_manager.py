@@ -5,6 +5,7 @@ import pandas as pd
 import yaml
 from types import SimpleNamespace
 from typing import Any, Dict, List
+import os
 
 from backend.config import load_config, AppConfig
 from backend.data import load_and_prepare_dataset, load_validation_dataset
@@ -40,7 +41,8 @@ class TrainingManager:
         self._app_config: AppConfig | None = None
         self._lock: Lock = Lock()
         # Lifecycle + async state
-        self.status: str = "NOT_STARTED"
+        self.status: str = "IDLE"
+        self.phase: str | None = "IDLE"
         self.logs: List[str] = []
         self.metrics_history: List[Dict[str, Any]] = []
         self.final_metrics: Dict[str, Any] = {}
@@ -51,6 +53,12 @@ class TrainingManager:
         """
         if self.get_status() == "RUNNING":
             st.warning("Training is already in progress.")
+            return False
+
+        # Validate configuration before starting
+        is_valid, error_message = self.validate_config()
+        if not is_valid:
+            st.error(f"Configuration Error: {error_message}")
             return False
 
         # Clear previous session logs/metrics
@@ -71,6 +79,7 @@ class TrainingManager:
         try:
             with self._lock:
                 self.status = "RUNNING"
+                self.phase = "INITIALIZING"
                 self.is_training = True
 
             # Load configurations and data
@@ -81,11 +90,17 @@ class TrainingManager:
             except Exception:
                 with self._lock:
                     self.max_epochs = 1
+            # Loading dataset
+            with self._lock:
+                self.phase = "LOADING_DATA"
             dataset = load_and_prepare_dataset(config)
             eval_dataset = load_validation_dataset(config)
             if dataset is None:
                 raise RuntimeError("Dataset loading failed.")
 
+            # Tokenization/model prep
+            with self._lock:
+                self.phase = "TOKENIZING"
             model, tokenizer = setup_model_and_tokenizer(config)
             if model is None or tokenizer is None:
                 raise RuntimeError("Model setup failed.")
@@ -106,6 +121,8 @@ class TrainingManager:
             self.add_log("--- Training starting ---")
 
             # Run training using the shared trainer entrypoint with manager callbacks
+            with self._lock:
+                self.phase = "TRAINING"
             success, final_eval = run_training_in_thread(
                 config, model, tokenizer, dataset, eval_dataset,
                 log_queue=None, metrics_queue=None, stop_event=self.stop_event, manager=self
@@ -113,6 +130,8 @@ class TrainingManager:
 
             with self._lock:
                 self.final_metrics = final_eval or {}
+                if success:
+                    self.phase = "SAVING_MODEL"
                 self.status = "COMPLETED" if success else "FAILED"
                 self.is_training = False
             if success:
@@ -123,6 +142,7 @@ class TrainingManager:
         except Exception as e:
             with self._lock:
                 self.status = "FAILED"
+                self.phase = "ERROR"
                 self.is_training = False
             self.add_log(f"--- TRAINING ERROR ---\n{e}")
 
@@ -164,7 +184,8 @@ class TrainingManager:
             self.logs.clear()
             self.metrics_history.clear()
             self.final_metrics = {}
-            self.status = "NOT_STARTED"
+            self.status = "IDLE"
+            self.phase = "IDLE"
         with self.log_queue.mutex:
             self.log_queue.queue.clear()
         with self.metrics_queue.mutex:
@@ -357,6 +378,7 @@ class TrainingManager:
             total_steps = int(self.total_steps) if self.total_steps else None
             current_step = int(self.last_step) if self.last_step is not None else None
             sps = float(self.smoothed_sps) if self.smoothed_sps is not None else None
+            phase = self.phase
 
         # Compute ETA
         eta_seconds = None
@@ -375,6 +397,7 @@ class TrainingManager:
             'current_step': current_step,
             'steps_per_second': sps,
             'eta_seconds': float(eta_seconds) if eta_seconds is not None else None,
+            'phase': phase,
         }
 
     def get_yaml_config(self):
@@ -590,6 +613,49 @@ class TrainingManager:
         except Exception as e:
             st.error(f"Failed to update configuration: {e}")
             return False
+
+    # ---- Configuration validation ----
+    def validate_config(self) -> tuple[bool, str]:
+        """
+        Validates the application configuration.
+        Returns a tuple of (is_valid, error_message).
+        """
+        try:
+            config = self._get_app_config()
+            # Data source checks
+            data_source = getattr(config, 'data_source', 'hf')
+            if data_source == 'local':
+                train_path = getattr(config, 'local_train_path', None)
+                val_path = getattr(config, 'local_validation_path', None)
+                if not train_path or not os.path.exists(train_path):
+                    return False, f"Training data file not found at: {train_path}"
+                if val_path and not os.path.exists(val_path):
+                    return False, f"Validation data file not found at: {val_path}"
+
+            # Model identifier basic sanity
+            base_model = getattr(config, 'base_model', None)
+            if not base_model or not isinstance(base_model, str) or '/' not in base_model:
+                # allow simple names but warn
+                self.add_log("[WARN] Base model repo id looks unusual. Expected 'org/model'.")
+
+            # Numeric ranges
+            try:
+                lr = float(getattr(config.training, 'learning_rate', 2e-4))
+                if not (1e-6 <= lr <= 1e-1):
+                    return False, f"Learning rate {lr} is out of acceptable range [1e-6, 1e-1]."
+            except Exception:
+                return False, "Learning rate is not a valid number."
+
+            try:
+                bs = int(getattr(config.training, 'per_device_train_batch_size', 1))
+                if bs < 1:
+                    return False, "Batch size must be >= 1."
+            except Exception:
+                return False, "Batch size is not a valid integer."
+
+            return True, "Configuration is valid."
+        except Exception as e:
+            return False, f"An error occurred during configuration validation: {e}"
 
 
 def get_training_manager() -> TrainingManager:
