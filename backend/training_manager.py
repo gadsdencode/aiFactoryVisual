@@ -18,8 +18,6 @@ class TrainingManager:
     """
     def __init__(self):
         self.training_thread = None
-        self.log_queue = queue.Queue()
-        self.metrics_queue = queue.Queue()
         self.is_training = False
         self.paused = False
         self.stop_event: Event | None = None
@@ -186,10 +184,6 @@ class TrainingManager:
             self.final_metrics = {}
             self.status = "IDLE"
             self.phase = "IDLE"
-        with self.log_queue.mutex:
-            self.log_queue.queue.clear()
-        with self.metrics_queue.mutex:
-            self.metrics_queue.queue.clear()
         # clear stop signal
         self.stop_event = None
 
@@ -247,124 +241,42 @@ class TrainingManager:
             except Exception:
                 pass
         return df
-
-
-    # Legacy queue-based methods retained for backward compatibility
-    def _drain_legacy_queues_into_state(self):
-        # Drain log queue
-        while not self.log_queue.empty():
-            entry = self.log_queue.get()
-            if entry is None:
-                with self._lock:
-                    self.is_training = False
-                    self.status = "COMPLETED"
-                break
-            if isinstance(entry, dict) and entry.get('meta') == 'progress':
-                try:
-                    if 'total_steps' in entry:
-                        with self._lock:
-                            self.total_steps = int(entry['total_steps'])
-                    self.add_log(f"[META] total_steps={entry.get('total_steps')} log_int={entry.get('logging_steps')}")
-                except Exception:
-                    pass
-            else:
-                self.add_log(str(entry))
-
-    def get_metrics(self):
-        """
-        Retrieves available metrics from the queue and concatenates them in batches
-        to avoid expensive concatenation of many tiny DataFrames.
-        """
-        standardized_frames = []
-        expected_cols = [
-            'step', 'epoch', 'train_loss', 'val_loss',
-            'train_accuracy', 'val_accuracy', 'learning_rate', 'timestamp'
-        ]
-        # Process a limited number of queue items per call to keep UI responsive
-        batch_size = 100
-        processed = 0
-        while not self.metrics_queue.empty() and processed < batch_size:
-            metric_df = self.metrics_queue.get()
-            # Normalize incoming logs (which may contain: step, loss, learning_rate, epoch)
-            try:
-                df = pd.DataFrame(metric_df)
-            except Exception:
-                df = metric_df if isinstance(metric_df, pd.DataFrame) else pd.DataFrame()
-
-            normalized = pd.DataFrame()
-            normalized['step'] = df.get('step')
-            normalized['epoch'] = df.get('epoch')
-            # Map generic loss -> train_loss; validation metrics may be absent
-            normalized['train_loss'] = df.get('train_loss', df.get('loss'))
-            normalized['val_loss'] = df.get('val_loss')
-            normalized['train_accuracy'] = df.get('train_accuracy')
-            normalized['val_accuracy'] = df.get('val_accuracy')
-            normalized['learning_rate'] = df.get('learning_rate')
-            normalized['grad_norm'] = df.get('grad_norm')
-            normalized['timestamp'] = pd.Timestamp.utcnow()
-
-            # Ensure column order and presence
-            normalized = normalized.reindex(columns=expected_cols)
-            standardized_frames.append(normalized)
-            processed += 1
-
-        if not standardized_frames:
-            return pd.DataFrame(columns=expected_cols)
-
-        out = pd.concat(standardized_frames, ignore_index=True)
-        # also mirror into new metrics history
-        try:
-            for _, row in out.iterrows():
-                self.add_metrics(row.to_dict())
-        except Exception:
-            pass
-        return out
-
     def get_status_snapshot(self):
         """Return a detailed status snapshot for rich dashboards (legacy compat)."""
-        # incorporate any newly arrived metrics into the cached training_data
-        self._drain_legacy_queues_into_state()
-        new_metrics = self.get_metrics()
-        if not new_metrics.empty:
-            with self._lock:
-                self.training_data = pd.concat([self.training_data, new_metrics]).reset_index(drop=True)
-            # try to update epoch/progress heuristically
-            if 'epoch' in new_metrics.columns and pd.notnull(new_metrics['epoch']).any():
+        # Use direct callback-updated metrics_history
+        with self._lock:
+            if self.metrics_history:
                 try:
-                    with self._lock:
-                        self.current_epoch = int(new_metrics['epoch'].dropna().iloc[-1])
+                    self.current_epoch = int(self.metrics_history[-1].get('epoch', self.current_epoch))
                 except Exception:
                     pass
-            # Step-based progress tracking
-            try:
-                latest_step = int(new_metrics['step'].dropna().iloc[-1]) if 'step' in new_metrics.columns else None
-            except Exception:
+                latest_step = self.metrics_history[-1].get('step')
+            else:
                 latest_step = None
-            if latest_step is not None and latest_step >= 0:
-                # Steps/sec estimate using simple EMA to stabilize
-                import time
-                now = time.time()
-                if self.last_step is not None and self.last_step_time is not None and latest_step > self.last_step:
-                    dt = max(1e-3, now - self.last_step_time)
-                    dstep = latest_step - self.last_step
-                    inst_sps = dstep / dt
-                    with self._lock:
-                        if self.smoothed_sps is None:
-                            self.smoothed_sps = inst_sps
-                        else:
-                            self.smoothed_sps = 0.8 * self.smoothed_sps + 0.2 * inst_sps
+        if latest_step is not None and latest_step >= 0:
+            # Steps/sec estimate using simple EMA to stabilize
+            import time
+            now = time.time()
+            if self.last_step is not None and self.last_step_time is not None and latest_step > self.last_step:
+                dt = max(1e-3, now - self.last_step_time)
+                dstep = latest_step - self.last_step
+                inst_sps = dstep / dt
                 with self._lock:
-                    self.last_step = latest_step
-                    self.last_step_time = now
+                    if self.smoothed_sps is None:
+                        self.smoothed_sps = inst_sps
+                    else:
+                        self.smoothed_sps = 0.8 * self.smoothed_sps + 0.2 * inst_sps
+            with self._lock:
+                self.last_step = latest_step
+                self.last_step_time = now
                 # Progress from steps if total known, else epoch fraction
-                with self._lock:
-                    if self.total_steps:
-                        self.progress = min(1.0, float(latest_step) / float(self.total_steps))
-                    elif self.max_epochs > 0:
-                        self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
-            elif self.max_epochs > 0:
-                with self._lock:
+                if self.total_steps:
+                    self.progress = min(1.0, float(latest_step) / float(self.total_steps))
+                elif self.max_epochs > 0:
                     self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
+        elif self.max_epochs > 0:
+            with self._lock:
+                self.progress = min(1.0, self.current_epoch / float(self.max_epochs))
 
         thread_alive = bool(self.training_thread and self.training_thread.is_alive())
         # Snapshot under lock for consistent return
