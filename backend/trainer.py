@@ -15,6 +15,7 @@ import streamlit as st
 from threading import Thread, Event
 import queue
 from transformers import TrainerCallback, TrainingArguments
+from backend.data import tokenize_and_cache_dataset
 
 class TrainingProgressCallback(TrainerCallback):
     """Callback that forwards logs/metrics to a TrainingManager instance."""
@@ -296,46 +297,11 @@ def run_training_in_thread(config, model, tokenizer, dataset, eval_dataset, log_
         except Exception:
             pass
 
-        # Tokenization pipeline (batched, multi-proc when possible)
-        text_field = config.text_column
-        def tokenize_batch(batch):
-            texts = batch[text_field]
-            enc = tokenizer(
-                texts,
-                truncation=True,
-                max_length=max_seq_len,
-                padding="max_length",
-                return_attention_mask=True,
-            )
-            # Ensure labels align with input_ids length for collator consistency
-            enc["labels"] = enc["input_ids"].copy()
-            return enc
+        # Tokenize datasets with on-disk caching
+        tokenized_train = tokenize_and_cache_dataset(config, tokenizer, dataset)
+        tokenized_eval = tokenize_and_cache_dataset(config, tokenizer, eval_dataset) if eval_dataset is not None else None
 
-        desired_proc = int(getattr(config.training, 'tokenizer_num_proc', None) or 0)
-        if desired_proc <= 0:
-            desired_proc = max(1, min(os.cpu_count() or 1, 8))
-        # Align Hugging Face tokenizers' internal threading with datasets multiprocessing
-        try:
-            if desired_proc <= 1:
-                os.environ["TOKENIZERS_PARALLELISM"] = "false"
-            else:
-                os.environ["TOKENIZERS_PARALLELISM"] = "true"
-            _emit_log(f"Tokenization parallelism resolved: num_proc={desired_proc}, TOKENIZERS_PARALLELISM={os.environ.get('TOKENIZERS_PARALLELISM')}")
-        except Exception:
-            pass
-        try:
-            tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=[c for c in dataset.column_names if c != text_field])
-            tokenized_eval = None
-            if eval_dataset is not None:
-                tokenized_eval = eval_dataset.map(tokenize_batch, batched=True, num_proc=desired_proc, remove_columns=[c for c in eval_dataset.column_names if c != text_field])
-        except Exception:
-            # Fallback to single-proc for Windows or constrained environments
-            tokenized_train = dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in dataset.column_names if c != text_field])
-            tokenized_eval = None
-            if eval_dataset is not None:
-                tokenized_eval = eval_dataset.map(tokenize_batch, batched=True, num_proc=1, remove_columns=[c for c in eval_dataset.column_names if c != text_field])
-
-        # Ensure torch format
+        # Ensure torch format handled by caching function; keep a safe fallback
         try:
             tokenized_train = tokenized_train.with_format("torch", columns=["input_ids","attention_mask","labels"])  # type: ignore
             if tokenized_eval is not None:

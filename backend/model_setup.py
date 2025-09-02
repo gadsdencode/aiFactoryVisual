@@ -163,6 +163,19 @@ def setup_model_and_tokenizer(config: AppConfig):
             except Exception:
                 pass
 
+        # --- Optional: torch.compile for performance (PyTorch 2.x) ---
+        try:
+            if bool(getattr(config.training, 'enable_torch_compile', False)):
+                import torch
+                if getattr(torch, '__version__', '2.0.0').startswith('2'):
+                    try:
+                        model = torch.compile(model)  # type: ignore
+                        st.info("Model compiled with torch.compile for improved performance.")
+                    except Exception as e:
+                        st.warning(f"torch.compile failed: {e}")
+        except Exception:
+            pass
+
         try:
             model.print_trainable_parameters()
         except Exception:

@@ -52,6 +52,7 @@ class TrainingConfig(BaseModel):
     max_seq_length: Optional[int] = None
     packing: bool = False
     device_map: str | Dict[str, Any] = "auto"
+    enable_torch_compile: bool = False
 
 class HuggingFaceConfig(BaseModel):
     push_to_hub: bool = False
