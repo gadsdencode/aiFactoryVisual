@@ -91,6 +91,8 @@ def main():
             except Exception:
                 st.info("No configuration loaded yet.")
 
+        # If a component requested navigation, apply it once
+        nav_target = st.session_state.get('_nav_target')
         page = option_menu(
             menu_title="Navigation",
             options=["Home", "Training Dashboard", "Configuration", "Model Comparison"],
@@ -98,6 +100,16 @@ def main():
             menu_icon="cast",
             default_index=0,
         )
+        if nav_target and nav_target in ["Home", "Training Dashboard", "Configuration", "Model Comparison"]:
+            # Clear the target and rerun to reflect selection
+            st.session_state['_nav_target'] = None
+            # Emulate a selection by rerendering the desired page section below
+            # We also display a small toast for context.
+            try:
+                st.toast(f"Navigating to {nav_target}…", icon="➡️")
+            except Exception:
+                pass
+            page = nav_target
 
         with st.expander("Settings"):
             # Theme selector

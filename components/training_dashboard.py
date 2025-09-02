@@ -17,7 +17,10 @@ def _render_training_dashboard_compact():
         with st.spinner("Training in progress... Please wait."):
             manager.start_training()
         st.session_state.training_complete = True
-        st.success("🎉 Training complete! You can now view the results and compare models.")
+        st.success("🎉 Training complete!")
+        if st.button("Compare Your Model", key="btn_compare_postrun"):
+            st.session_state['_nav_target'] = 'Model Comparison'
+            st.rerun()
         try:
             st.balloons()
         except Exception:

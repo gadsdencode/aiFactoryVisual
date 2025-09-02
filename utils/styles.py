@@ -257,6 +257,25 @@ def apply_base_styles(theme='light'):
             color: {error_color} !important;
         }}
         
+        /* Toast notification styling (st.toast) */
+        [data-testid="stNotification"],
+        [data-testid="stToast"],
+        div[role="status"][data-testid="stToast"],
+        div[role="alert"][data-testid="stToast"] {{
+            background-color: {card_bg} !important;
+            color: {text_color} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 10px !important;
+            box-shadow: {card_shadow} !important;
+        }}
+        [data-testid="stNotification"] *,
+        [data-testid="stToast"] *,
+        div[role="status"][data-testid="stToast"] *,
+        div[role="alert"][data-testid="stToast"] * {{
+            color: {text_color} !important;
+            fill: {text_color} !important;
+        }}
+        
         /* Enhanced DataFrame styling for dark mode */
         .stDataFrame {{
             border-radius: 8px;
