@@ -555,7 +555,12 @@ def render_configuration():
                 }
                 hf_token = st.session_state.get('hf_token', None)
                 if training_manager.update_config(new_config, hf_token):
-                    st.success("Configuration saved successfully!")
+                    st.success("Configuration saved! Now you're ready to train.")
+                    go_dash = st.button("Go to Training Dashboard", key="go_to_training_dashboard_btn")
+                    if go_dash:
+                        # Set navigation target; app.py will honor this on next render
+                        st.session_state['_nav_target'] = 'Training Dashboard'
+                        st.rerun()
                 else:
                     st.error("Cannot update configuration during active training!")
         with col2:
