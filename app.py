@@ -58,7 +58,6 @@ def main():
 
     # --- Sidebar Navigation ---
     with st.sidebar:
-        st.image("https://i.imgur.com/MhW3f0i.png", width=80)
         st.title("AI Factory")
         st.info(
             """
