@@ -1,934 +1,218 @@
 import streamlit as st
 
-def apply_base_styles(theme='light'):
-    """Apply custom CSS styles matching the specified design requirements."""
-    
-    # Define colors based on theme
+def apply_styles(theme='light'):
+    """
+    Applies a modern, intuitive, and visually appealing style to the Streamlit app.
+    This single function consolidates base styles and brand overrides for easier maintenance.
+    """
     if theme == 'dark':
-        bg_color = '#0F172A'
-        text_color = '#F1F5F9'
-        card_bg = '#1E293B'
+        # Dark theme color palette
+        bg_color = '#0b1120'
+        text_color = '#e2e8f0' # Light gray for text
+        muted_text_color = '#94a3b8' # Muted gray for less important text
+        card_bg = '#1e293b'
         border_color = '#334155'
-        sidebar_bg = '#1E293B'
+        sidebar_bg = '#1e293b'
         input_bg = '#334155'
         hover_bg = '#334155'
-        focus_color = 'rgba(99, 102, 241, 0.2)'
-        button_shadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
-        card_shadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
+        focus_color = 'rgba(99, 102, 241, 0.3)'
+        
         # Alert colors for dark theme
-        success_bg = '#0F2A1A'
-        success_color = '#4ADE80'
-        info_bg = '#1E293B'
-        info_color = '#93C5FD'
-        warning_bg = '#2D1B0F'
-        warning_color = '#FCD34D'
-        error_bg = '#2D1B1B'
-        error_color = '#F87171'
-    else:  # light theme
-        bg_color = '#F8FAFC'
-        text_color = '#1E293B'
-        card_bg = '#FFFFFF'
-        border_color = '#E2E8F0'
-        sidebar_bg = '#FFFFFF'
-        input_bg = '#FFFFFF'
-        hover_bg = '#F8FAFC'
-        focus_color = 'rgba(99, 102, 241, 0.1)'
-        button_shadow = '0 1px 2px rgba(0, 0, 0, 0.1)'
-        card_shadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
+        success_bg = 'rgba(74, 222, 128, 0.1)'
+        success_border = '#4ade80'
+        success_text = '#a7f3d0'
+        info_bg = 'rgba(96, 165, 250, 0.1)'
+        info_border = '#60a5fa'
+        info_text = '#bfdbfe'
+        warning_bg = 'rgba(251, 191, 36, 0.1)'
+        warning_border = '#fbbf24'
+        warning_text = '#fde68a'
+        error_bg = 'rgba(248, 113, 113, 0.1)'
+        error_border = '#f87171'
+        error_text = '#fecaca'
+    else:
+        # Light theme color palette
+        bg_color = '#f7fafc'
+        text_color = '#1a202c' # Dark gray for text
+        muted_text_color = '#718096'
+        card_bg = '#ffffff'
+        border_color = '#e2e8f0'
+        sidebar_bg = '#ffffff'
+        input_bg = '#ffffff'
+        hover_bg = '#f0f2f6'
+        focus_color = 'rgba(99, 102, 241, 0.2)'
+
         # Alert colors for light theme
-        success_bg = '#ECFDF5'
-        success_color = '#047857'
-        info_bg = '#EFF6FF'
-        info_color = '#1D4ED8'
-        warning_bg = '#FFFBEB'
-        warning_color = '#92400E'
-        error_bg = '#FEF2F2'
-        error_color = '#DC2626'
-    
+        success_bg = '#f0fdf4'
+        success_border = '#4ade80'
+        success_text = '#14532d'
+        info_bg = '#eff6ff'
+        info_border = '#60a5fa'
+        info_text = '#1e3a8a'
+        warning_bg = '#fefce8'
+        warning_border = '#fbbf24'
+        warning_text = '#78350f'
+        error_bg = '#fef2f2'
+        error_border = '#f87171'
+        error_text = '#991b1b'
+
     st.markdown(f"""
     <style>
         /* Import Inter and JetBrains Mono fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
         
-        /* Root variables for consistent theming */
+        /* CSS Variables for consistent theming */
         :root {{
             --primary-color: #6366F1;
+            --primary-gradient: linear-gradient(90deg, #6366F1, #8B5CF6);
             --secondary-color: #8B5CF6;
-            --success-color: #10B981;
-            --warning-color: #F59E0B;
-            --error-color: #EF4444;
-            --spacing: 20px;
+            --border-radius-lg: 12px;
+            --border-radius-md: 8px;
+            --transition-speed: 0.2s;
         }}
         
-        /* Global page styling - target the root Streamlit container */
+        /* --- Global & Typography Styles --- */
         .stApp {{
-            background-color: {bg_color} !important;
-            color: {text_color} !important;
+            background-color: {bg_color};
         }}
         
-        /* Main content area */
-        .main {{
+        body, .stApp, .stMarkdown, .stButton, .stTextInput, .stTextArea, .stSelectbox {{
             font-family: 'Inter', sans-serif;
-            color: {text_color} !important;
-            background-color: {bg_color} !important;
-        }}
-        
-        /* Main content block */
-        .block-container {{
-            background-color: {bg_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Headers */
-        h1, h2, h3 {{
-            font-family: 'Inter', sans-serif;
-            font-weight: 600;
             color: {text_color};
         }}
         
-        /* Code and monospace text */
+        h1, h2, h3, h4, h5, h6 {{
+            font-weight: 600;
+            color: {text_color};
+        }}
+
+        p, ol, ul, li {{
+             color: {text_color};
+        }}
+        
         code, .stCode, pre {{
             font-family: 'JetBrains Mono', monospace;
         }}
         
-        /* Sidebar styling - comprehensive */
-        .css-1d391kg, .css-1cypcdb, .css-17eq0hr, section[data-testid="stSidebar"] {{
-            background-color: {sidebar_bg} !important;
-            border-right: 1px solid {border_color} !important;
-            color: {text_color} !important;
+        /* --- Layout --- */
+        .main .block-container {{
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }}
+
+        [data-testid="stSidebar"] {{
+            background-color: {sidebar_bg};
+            border-right: 1px solid {border_color};
         }}
         
-        /* Sidebar content */
-        .css-1d391kg * {{
-            color: {text_color} !important;
-        }}
+        /* --- Component Styling --- */
         
-        /* All text elements */
-        p, span, div, label, .stMarkdown, .stText {{
-            color: {text_color} !important;
-        }}
-        
-        /* Metric cards styling */
-        [data-testid="metric-container"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px;
-            padding: var(--spacing);
-            box-shadow: {card_shadow};
-        }}
-        
-        [data-testid="metric-container"] > div {{
-            color: {text_color} !important;
-        }}
-        
-        /* Enhanced button styling for dark mode */
+        /* Buttons */
         .stButton > button {{
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
-            font-weight: 500;
+            border-radius: var(--border-radius-md);
+            font-weight: 600;
             border: none;
-            transition: all 0.2s ease;
-            box-shadow: {button_shadow};
+            transition: all var(--transition-speed) ease;
         }}
         
         .stButton > button[kind="primary"] {{
-            background-color: var(--primary-color);
+            background: var(--primary-gradient);
             color: white;
         }}
         
-        .stButton > button[kind="primary"]:hover {{
-            background-color: #5855EB;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
-        }}
-        
         .stButton > button:not([kind="primary"]) {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
+            background-color: {card_bg};
+            border: 1px solid {border_color};
+            color: {text_color};
         }}
-        
-        .stButton > button:not([kind="primary"]):hover {{
-            background-color: {hover_bg} !important;
-            border-color: var(--primary-color) !important;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px {focus_color};
-        }}
-        
-        /* Enhanced form controls for dark mode */
-        .stSelectbox > div > div {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px;
-            color: {text_color} !important;
-            transition: all 0.2s ease;
-        }}
-        
-        .stSelectbox > div > div:hover {{
-            border-color: #64748B !important;
-        }}
-        
-        .stSelectbox > div > div:focus-within {{
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 2px {focus_color} !important;
-        }}
-        
-        .stNumberInput > div > div > input,
-        .stTextInput > div > div > input {{
+
+        /* Input Fields (Text, Number, Select) */
+        .stTextInput input, .stNumberInput input, .stSelectbox > div > div, .stTextArea textarea {{
             background-color: {input_bg} !important;
             border: 1px solid {border_color} !important;
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
+            border-radius: var(--border-radius-md) !important;
             color: {text_color} !important;
-            transition: all 0.2s ease;
+            transition: all var(--transition-speed) ease;
         }}
         
-        .stNumberInput > div > div > input:focus,
-        .stTextInput > div > div > input:focus {{
+        .stTextInput input:focus, .stNumberInput input:focus, .stSelectbox > div > div:focus-within, .stTextArea textarea:focus {{
             border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 2px {focus_color} !important;
+            box-shadow: 0 0 0 3px {focus_color} !important;
             outline: none !important;
         }}
         
-        .stNumberInput > div > div > input:hover,
-        .stTextInput > div > div > input:hover {{
-            border-color: #64748B !important;
-        }}
-
-        /* Text area styling (e.g., Logs) */
-        .stTextArea textarea {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-            font-family: 'Inter', sans-serif !important;
+        /* Dropdown Menus */
+        div[data-baseweb="popover"] ul li {{
             color: {text_color} !important;
-            transition: all 0.2s ease;
         }}
 
-        .stTextArea textarea:hover {{
-            border-color: #64748B !important;
-        }}
-
-        .stTextArea textarea:focus {{
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 2px {focus_color} !important;
-            outline: none !important;
-        }}
-
-        .stTextArea textarea::placeholder {{
-            color: {'#64748B' if theme == 'dark' else '#94A3B8'} !important;
-        }}
-        
-        /* Progress bar styling */
-        .stProgress > div > div > div {{
-            background-color: var(--primary-color);
-            border-radius: 4px;
-        }}
-        
-        /* Enhanced alert styling for dark mode */
+        /* Alerts */
         .stAlert {{
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
+            border-radius: var(--border-radius-md);
             border-width: 1px;
             border-style: solid;
+            border-left-width: 4px;
         }}
+        .stAlert p {{
+             color: inherit !important; /* Make sure text inside alert inherits the color */
+        }}
+        .stAlert.stSuccess {{ background-color: {success_bg}; border-color: {success_border}; color: {success_text}; }}
+        .stAlert.stInfo {{ background-color: {info_bg}; border-color: {info_border}; color: {info_text}; }}
+        .stAlert.stWarning {{ background-color: {warning_bg}; border-color: {warning_border}; color: {warning_text}; }}
+        .stAlert.stError {{ background-color: {error_bg}; border-color: {error_border}; color: {error_text}; }}
         
-        .stSuccess {{
-            background-color: {success_bg} !important;
-            border-color: var(--success-color) !important;
-            color: {success_color} !important;
-        }}
-        
-        .stInfo {{
-            background-color: {info_bg} !important;
-            border-color: var(--primary-color) !important;
-            color: {info_color} !important;
-        }}
-        
-        .stWarning {{
-            background-color: {warning_bg} !important;
-            border-color: var(--warning-color) !important;
-            color: {warning_color} !important;
-        }}
-        
-        .stError {{
-            background-color: {error_bg} !important;
-            border-color: var(--error-color) !important;
-            color: {error_color} !important;
-        }}
-        
-        /* Toast notification styling (st.toast) */
-        [data-testid="stNotification"],
-        [data-testid="stToast"],
-        div[role="status"][data-testid="stToast"],
-        div[role="alert"][data-testid="stToast"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 10px !important;
-            box-shadow: {card_shadow} !important;
-        }}
-        [data-testid="stNotification"] *,
-        [data-testid="stToast"] *,
-        div[role="status"][data-testid="stToast"] *,
-        div[role="alert"][data-testid="stToast"] * {{
-            color: {text_color} !important;
-            fill: {text_color} !important;
-        }}
-        
-        /* Enhanced DataFrame styling for dark mode */
-        .stDataFrame {{
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid {border_color} !important;
-            background-color: {card_bg} !important;
-            box-shadow: {card_shadow};
-        }}
-        
-        .stDataFrame [data-testid="stDataFrameResizable"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        .stDataFrame table {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* ULTIMATE FIX: All possible expander selectors for dark mode */
+        /* Expanders */
         .streamlit-expanderHeader {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
-            font-weight: 500;
-            color: {text_color} !important;
-            transition: all 0.2s ease;
+            color: {text_color};
+        }}
+        .streamlit-expanderContent, [data-testid="stExpander"] > div > div {{
+            background-color: {card_bg};
         }}
         
-        .streamlit-expanderHeader:hover {{
-            background-color: {hover_bg} !important;
-            border-color: #64748B !important;
-        }}
+        /* --- Deep Color Overrides & Sidebar Fix --- */
         
-        /* CRITICAL: Force expander content backgrounds */
-        .streamlit-expanderContent,
-        [data-testid="stExpander"] > div,
-        [data-testid="stExpander"] > div > div,
-        [data-testid="stExpander"] > div > div > div,
-        [data-testid="stExpander"] div[data-testid="stExpanderDetails"],
-        .css-1kyxreq,
-        .css-ocqkz7,
-        .css-1kyxreq > div,
-        .css-ocqkz7 > div,
-        .element-container > div > div[style*="padding"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Force ALL expander descendants to have proper colors */
-        [data-testid="stExpander"] *,
+        /* Force color inheritance in tricky components */
         .streamlit-expanderContent *,
-        .css-1kyxreq *,
-        .css-ocqkz7 * {{
-            background-color: transparent !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Override any white/light backgrounds in expanders */
-        [data-testid="stExpander"] div[style*="background-color: rgb(255, 255, 255)"],
-        [data-testid="stExpander"] div[style*="background-color: white"],
-        [data-testid="stExpander"] div[style*="background-color: #fff"],
-        [data-testid="stExpander"] div[style*="background-color: #ffffff"] {{
-            background-color: {card_bg} !important;
-        }}
-        
-        /* Specific targeting for the problematic light containers */
-        .css-1kyxreq[style*="background"],
-        .css-ocqkz7[style*="background"],
-        .element-container[style*="background"] {{
-            background-color: {card_bg} !important;
-        }}
-        
-        /* Nuclear option: override any element with white background inside expanders */
-        [data-testid="stExpander"] div,
-        [data-testid="stExpander"] section,
-        [data-testid="stExpander"] [class*="css-"] {{
-            background-color: {card_bg} !important;
-            border-color: {border_color} !important;
-        }}
-        
-        /* Plotly chart container */
-        .js-plotly-plot {{
-            border-radius: 8px;
-        }}
-        
-        /* Comprehensive text color overrides */
-        .stMarkdown, .stText, .stMarkdown p, .stMarkdown div, .stMarkdown span {{
-            color: {text_color} !important;
-        }}
-        
-        /* Column containers */
-        .css-ocqkz7, .css-1kyxreq, .element-container {{
-            background-color: transparent !important;
-        }}
-        
-        /* Widget labels */
-        .stSelectbox label, .stNumberInput label, .stTextInput label, .stSlider label {{
-            color: {text_color} !important;
-        }}
-        
-        /* Enhanced slider styling for dark mode */
-        .stSlider > div > div > div > div {{
-            background-color: {card_bg} !important;
-        }}
-        
-        .stSlider [data-baseweb="slider"] [data-testid="stTickBar"] {{
-            background-color: #475569 !important;
-        }}
-        
-        .stSlider [data-baseweb="slider"] [data-testid="stThumb"] {{
-            background-color: var(--primary-color) !important;
-            border: 2px solid {card_bg} !important;
-            box-shadow: {button_shadow} !important;
-        }}
-        
-        /* Enhanced tab styling for dark mode */
-        .stTabs [data-baseweb="tab-list"] {{
-            background-color: {card_bg} !important;
-            border-bottom: 1px solid {border_color} !important;
-            border-radius: 8px 8px 0 0;
-        }}
-        
-        .stTabs [data-baseweb="tab"] {{
-            color: #94A3B8 !important;
-            transition: all 0.2s ease;
-        }}
-        
-        .stTabs [data-baseweb="tab"]:hover {{
-            color: {text_color} !important;
-        }}
-        
-        .stTabs [aria-selected="true"] {{
-            color: var(--primary-color) !important;
-            border-bottom-color: var(--primary-color) !important;
-        }}
-        
-        /* Radio button and checkbox styling for dark mode */
-        .stRadio > div {{
-            color: {text_color} !important;
-        }}
-        
-        .stRadio > div > label {{
-            color: {text_color} !important;
-        }}
-        
-        .stCheckbox > label {{
-            color: {text_color} !important;
-        }}
-        
-        .stRadio [data-baseweb="radio"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-        }}
-        
-        .stCheckbox [data-testid="stCheckbox"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-        }}
-        
-        /* Enhanced multiselect styling for dark mode */
-        .stMultiSelect > div > div {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }}
-        
-        .stMultiSelect > div > div:focus-within {{
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 2px {focus_color} !important;
-        }}
-        
-        .stMultiSelect [data-baseweb="tag"] {{
-            background-color: #475569 !important;
-            color: {text_color} !important;
-        }}
-        
-        /* JSON styling */
-        .stJson {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Spacing utilities */
-        .space-small {{ margin: calc(var(--spacing) / 2) 0; }}
-        .space-medium {{ margin: var(--spacing) 0; }}
-        .space-large {{ margin: calc(var(--spacing) * 2) 0; }}
-        
-        /* Custom grid system */
-        .metric-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--spacing);
-            margin: var(--spacing) 0;
+        [data-testid="stExpander"] *,
+        .stAlert *,
+        [data-testid="stMetric"] * {{
+            color: inherit !important;
         }}
 
-        /* Generic card container for grouped UI elements */
+        /* === START OF SIDEBAR FIX === */
+        /* Explicitly set readable colors for text elements inside the sidebar */
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] li,
+        [data-testid="stSidebar"] ol,
+        [data-testid="stSidebar"] ul {{
+            color: {muted_text_color} !important;
+        }}
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3 {{
+             color: {text_color} !important;
+        }}
+        /* === END OF SIDEBAR FIX === */
+        
+        /* Custom Card Container */
         .model-card {{
-            position: relative;
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 12px !important;
-            padding: calc(var(--spacing) * 0.9) !important;
-            box-shadow: {card_shadow} !important;
-            transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
-        }}
-        .model-card h3, .model-card h4, .model-card p {{
-            color: {text_color} !important;
-            margin-top: 0.25rem !important;
-            margin-bottom: 0.5rem !important;
-        }}
-        .model-card:hover {{
-            border-color: var(--primary-color) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25) !important;
-        }}
-
-        /* Accented state for best/selected model */
-        .model-card.best {{
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 2px rgba(99,102,241,.35), 0 10px 22px rgba(99,102,241,.25) !important;
-        }}
-
-        /* Badge in top-right */
-        .model-card .card-badge {{
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 4px 10px;
-            background: linear-gradient(90deg, var(--primary-color), #8B5CF6);
-            color: white !important;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: .25px;
-        }}
-
-        /* Metric hover accent inside cards */
-        .model-card [data-testid="metric-container"] {{
-            transition: background-color .15s ease, border-color .15s ease;
-        }}
-        .model-card [data-testid="metric-container"]:hover {{
-            border-color: var(--primary-color) !important;
-            background-color: {hover_bg} !important;
-        }}
-        
-        /* Additional comprehensive styling */
-        .css-10trblm, .css-16idsys, .css-1inwz65 {{
-            background-color: {bg_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Plotly charts background */
-        .js-plotly-plot .plot-container {{
-            background-color: {card_bg} !important;
-        }}
-        
-        /* Configuration Page Specific Dark Mode Fixes */
-        
-        /* Help text and descriptions */
-        .stMarkdown small, .stHelp, [data-testid="stHelp"] {{
-            color: {'#94A3B8' if theme == 'dark' else '#64748B'} !important;
-        }}
-        
-        /* Form field containers */
-        .stForm {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px;
-        }}
-        
-        /* Radio button containers and labels */
-        .stRadio > div {{
-            background-color: transparent !important;
-        }}
-        
-        .stRadio > div > label > div {{
-            color: {text_color} !important;
-        }}
-        
-        .stRadio [data-baseweb="radio"] > div {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-        }}
-        
-        .stRadio [data-baseweb="radio"][aria-checked="true"] > div {{
-            background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
-        }}
-        
-        /* Spinner/loading indicators */
-        .stSpinner > div {{
-            border-color: {border_color} !important;
-            border-top-color: var(--primary-color) !important;
-        }}
-        
-        /* Enhanced Selectbox styling for dark mode */
-        .stSelectbox {{
-            color: {text_color} !important;
-        }}
-        
-        .stSelectbox > div > div {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        .stSelectbox [data-baseweb="select"] {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        .stSelectbox [data-baseweb="select"] > div {{
-            background-color: {input_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        .stSelectbox [data-baseweb="select"] span {{
-            color: {text_color} !important;
-        }}
-        
-        /* Selectbox dropdown arrow */
-        .stSelectbox svg {{
-            fill: {text_color} !important;
-        }}
-        
-        /* Selectbox dropdown options */
-        .stSelectbox [role="listbox"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px;
-            box-shadow: {card_shadow};
-        }}
-        
-        .stSelectbox [role="option"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        .stSelectbox [role="option"]:hover {{
-            background-color: {hover_bg} !important;
-        }}
-        
-        .stSelectbox [aria-selected="true"] {{
-            background-color: {'#475569' if theme == 'dark' else '#F1F5F9'} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Selectbox in sidebar specific styling */
-        .css-1d391kg .stSelectbox {{
-            color: {text_color} !important;
-        }}
-        
-        .css-1d391kg .stSelectbox > div > div {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        .css-1d391kg .stSelectbox [data-baseweb="select"] {{
-            background-color: {input_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        .css-1d391kg .stSelectbox [data-baseweb="select"] span {{
-            color: {text_color} !important;
-        }}
-        
-        /* Dropdown menu styling - target the actual dropdown that opens */
-        [data-baseweb="popover"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-        }}
-        
-        [data-baseweb="menu"] {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-        }}
-        
-        [data-baseweb="menu"] [role="option"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        [data-baseweb="menu"] [role="option"]:hover {{
-            background-color: {hover_bg} !important;
-            color: {text_color} !important;
-        }}
-
-        /* Ensure inner content within dropdown options is readable (idle + hover) */
-        [data-baseweb="menu"] [role="option"] * {{
-            color: {text_color} !important;
-        }}
-        [data-baseweb="menu"] button,
-        [data-baseweb="menu"] a,
-        [data-baseweb="menu"] div {{
-            color: {text_color} !important;
-            background-color: transparent !important;
-        }}
-        
-        /* More specific targeting for the dropdown */
-        div[data-baseweb="popover"] > div {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-        }}
-        
-        div[data-baseweb="popover"] ul {{
-            background-color: {card_bg} !important;
-        }}
-        
-        div[data-baseweb="popover"] li {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        div[data-baseweb="popover"] li:hover {{
-            background-color: {hover_bg} !important;
-            color: {text_color} !important;
-        }}
-
-        /* Popover trigger buttons (our inline info tooltips) */
-        [data-testid="stPopover"] button {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-            box-shadow: {button_shadow} !important;
-        }}
-        [data-testid="stPopover"] button:hover {{
-            background-color: {hover_bg} !important;
-            border-color: var(--primary-color) !important;
-            color: {text_color} !important;
-        }}
-        [data-testid="stPopover"] button:focus {{
-            box-shadow: 0 0 0 2px {focus_color} !important;
-            outline: none !important;
-        }}
-        [data-testid="stPopover"] button * {{
-            color: {text_color} !important;
-            fill: {text_color} !important;
-        }}
-
-        /* Tooltip styling (widget help, hover popups) */
-        [data-baseweb="tooltip"],
-        div[data-baseweb="tooltip"] > div {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-        }}
-        [data-baseweb="tooltip"] * {{
-            color: {text_color} !important;
-        }}
-        
-        /* Text input placeholders */
-        .stTextInput input::placeholder,
-        .stNumberInput input::placeholder {{
-            color: {'#64748B' if theme == 'dark' else '#94A3B8'} !important;
-        }}
-        
-        /* Widget help tooltips */
-        [data-testid="stTooltipHoverTarget"] {{
-            color: {text_color} !important;
-        }}
-        
-        /* Validation and error messages in forms */
-        .stTextInput .stError,
-        .stNumberInput .stError,
-        .stSelectbox .stError {{
-            color: {error_color} !important;
-        }}
-        
-        /* Password input specific styling */
-        .stTextInput input[type="password"] {{
-            background-color: {input_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Download button styling */
-        .stDownloadButton > button {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
-        }}
-        
-        .stDownloadButton > button:hover {{
-            background-color: {hover_bg} !important;
-            border-color: var(--primary-color) !important;
-        }}
-        
-        /* Metric delta colors */
-        [data-testid="metric-container"] [data-testid="stMetricDelta"] {{
-            color: {text_color} !important;
-        }}
-        
-        /* Code blocks and JSON display */
-        .stCodeBlock {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* Enhanced JSON display styling for dark mode */
-        .stJson {{
-            background-color: {card_bg} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-            padding: 16px !important;
-        }}
-        
-        .stJson pre {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            margin: 0 !important;
-        }}
-        
-        .stJson pre code {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        /* JSON syntax highlighting for better readability */
-        .stJson .token.string {{
-            color: {'#84CC16' if theme == 'dark' else '#059669'} !important;
-        }}
-        
-        .stJson .token.number {{
-            color: {'#F59E0B' if theme == 'dark' else '#D97706'} !important;
-        }}
-        
-        .stJson .token.boolean {{
-            color: {'#8B5CF6' if theme == 'dark' else '#7C3AED'} !important;
-        }}
-        
-        .stJson .token.keyword {{
-            color: {'#06B6D4' if theme == 'dark' else '#0891B2'} !important;
-        }}
-        
-        /* Ensure all JSON container elements have proper styling */
-        [data-testid="stJson"] {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-            border: 1px solid {border_color} !important;
-            border-radius: 8px !important;
-        }}
-        
-        [data-testid="stJson"] > div {{
-            background-color: {card_bg} !important;
-            color: {text_color} !important;
-        }}
-        
-        [data-testid="stJson"] * {{
-            color: {text_color} !important;
-        }}
-        
-        /* Widget containers */
-        .stWidget {{
-            background-color: transparent !important;
-        }}
-        
-        .stWidget > div {{
-            color: {text_color} !important;
-        }}
-        
-        /* Status indicators */
-        .element-container .stSuccess [data-testid="stMarkdownContainer"] p {{
-            color: {success_color} !important;
-        }}
-        
-        .element-container .stInfo [data-testid="stMarkdownContainer"] p {{
-            color: {info_color} !important;
-        }}
-        
-        .element-container .stWarning [data-testid="stMarkdownContainer"] p {{
-            color: {warning_color} !important;
-        }}
-        
-        .element-container .stError [data-testid="stMarkdownContainer"] p {{
-            color: {error_color} !important;
-        }}
-        
-        /* Container backgrounds */
-        .stContainer {{
-            background-color: transparent !important;
-        }}
-        
-        /* Column dividers */
-        .element-container {{
-            border-color: transparent !important;
-        }}
-        
-        /* Search results styling */
-        .stSelectbox [data-testid="stMarkdownContainer"] {{
-            color: {text_color} !important;
-        }}
-        
-        /* Form labels with better contrast */
-        .stSelectbox > label,
-        .stNumberInput > label,
-        .stTextInput > label,
-        .stSlider > label,
-        .stRadio > label {{
-            color: {text_color} !important;
-            font-weight: 500;
-        }}
-        
-        /* Disabled input styling */
-        .stTextInput input[disabled],
-        .stNumberInput input[disabled],
-        .stSelectbox select[disabled] {{
-            background-color: {'#374151' if theme == 'dark' else '#F3F4F6'} !important;
-            color: {'#6B7280' if theme == 'dark' else '#9CA3AF'} !important;
-            border-color: {border_color} !important;
-        }}
-        
-        /* Progress indicators */
-        .stProgress [data-testid="stProgress"] {{
-            background-color: {border_color} !important;
+            background-color: {card_bg};
+            border: 1px solid {border_color};
+            border-radius: var(--border-radius-lg);
+            padding: calc(var(--spacing, 20px) * 1.25);
+            transition: all var(--transition-speed) ease;
         }}
         
         /* Hide Streamlit branding */
-        #MainMenu {{visibility: hidden;}}
-        footer {{visibility: hidden;}}
-        header {{visibility: hidden;}}
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {{
-            :root {{
-                --spacing: 15px;
-            }}
-            
-            .main {{
-                padding: var(--spacing);
-            }}
+        #MainMenu, footer, header {{
+            visibility: hidden;
         }}
     </style>
     """, unsafe_allow_html=True)
 
 
 def inject_card(title: str | None = None, body_md: str | None = None):
-    """Convenience helper to render a styled card container.
-
-    Example:
-        inject_card("Section", "Some markdown content")
-    """
+    """Convenience helper to render a styled card container."""
     with st.container():
         if title:
             st.markdown(f"### {title}")
@@ -949,10 +233,9 @@ def render_model_overview_card(
     baseline_training_time_hours: float | None = None,
     baseline_memory_gb: float | None = None,
 ):
-    """Render a standardized model overview card with a 2x2 metric layout.
-
-    This uses Streamlit metrics and relies on global CSS injected by apply_base_styles
-    to provide card-like styling. Keeps layout consistent across pages.
+    """
+    Renders a standardized model overview card with a 2x2 metric layout.
+    This uses Streamlit metrics and relies on global CSS for card styling.
     """
     container = st.container()
     with container:
@@ -962,135 +245,37 @@ def render_model_overview_card(
             badge = best_badge_text or "BEST"
             st.markdown(f'<div class="card-badge">{badge}</div>', unsafe_allow_html=True)
         st.markdown(f"### {model_name}")
-        row1_c1, row1_c2 = st.columns(2)
-        with row1_c1:
-            # Loss: lower is better → inverse delta coloring
-            if final_loss is None:
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if final_loss is not None:
+                delta = f"{(final_loss - baseline_loss):+.4f}" if baseline_loss is not None else None
+                st.metric("Final Loss", f"{final_loss:.4f}", delta=delta, delta_color="inverse")
+            else:
                 st.metric("Final Loss", "-")
+            
+            if training_time_hours is not None:
+                delta = f"{(training_time_hours - baseline_training_time_hours):+.1f}h" if baseline_training_time_hours is not None else None
+                st.metric("Training Time", f"{training_time_hours:.1f}h", delta=delta, delta_color="inverse")
             else:
-                delta_txt = None
-                if baseline_loss is not None:
-                    diff = float(final_loss) - float(baseline_loss)
-                    delta_txt = f"{diff:+.4f}"
-                st.metric("Final Loss", f"{final_loss:.4f}", delta=delta_txt, delta_color="inverse")
-        with row1_c2:
-            # Accuracy: higher is better
-            if final_accuracy is None:
-                st.metric("Final Accuracy", "-")
-            else:
-                delta_txt = None
-                if baseline_accuracy is not None:
-                    diff_pct = (float(final_accuracy) - float(baseline_accuracy)) * 100.0
-                    delta_txt = f"{diff_pct:+.2f}%"
-                st.metric("Final Accuracy", f"{final_accuracy:.2%}", delta=delta_txt, delta_color="normal")
-        row2_c1, row2_c2 = st.columns(2)
-        with row2_c1:
-            # Time: lower is better → inverse delta coloring
-            if training_time_hours is None:
                 st.metric("Training Time", "-")
+
+        with col2:
+            if final_accuracy is not None:
+                delta = f"{(final_accuracy - baseline_accuracy) * 100.0:+.2f}%" if baseline_accuracy is not None else None
+                st.metric("Final Accuracy", f"{final_accuracy:.2%}", delta=delta, delta_color="normal")
             else:
-                delta_txt = None
-                if baseline_training_time_hours is not None:
-                    diff = float(training_time_hours) - float(baseline_training_time_hours)
-                    delta_txt = f"{diff:+.1f}h"
-                st.metric("Training Time", f"{training_time_hours:.1f}h", delta=delta_txt, delta_color="inverse")
-        with row2_c2:
-            # Memory: lower is better → inverse delta coloring
-            if memory_gb is None:
+                st.metric("Final Accuracy", "-")
+
+            if memory_gb is not None:
+                delta = f"{(memory_gb - baseline_memory_gb):+.1f}GB" if baseline_memory_gb is not None else None
+                st.metric("Memory Usage", f"{memory_gb:.1f}GB", delta=delta, delta_color="inverse")
+            else:
                 st.metric("Memory Usage", "-")
-            else:
-                delta_txt = None
-                if baseline_memory_gb is not None:
-                    diff = float(memory_gb) - float(baseline_memory_gb)
-                    delta_txt = f"{diff:+.1f}GB"
-                st.metric("Memory Usage", f"{memory_gb:.1f}GB", delta=delta_txt, delta_color="inverse")
+                
         st.markdown('</div>', unsafe_allow_html=True)
 
-
-def apply_custom_styles(theme='light'):
-    """Backwards-compatible alias: apply base styles plus brand overrides."""
-    apply_base_styles(theme)
-    _apply_brand_overrides(theme)
-
-def _apply_brand_overrides(theme: str):
-    """Apply brand overrides that respect dark/light theme."""
-    if theme == 'dark':
-        sidebar_bg = '#1E293B'
-        sidebar_border = '#334155'
-        sidebar_h_color = '#F8FAFC'
-        sidebar_text = '#E5E7EB'
-        tab_selected_bg = '#3B82F6'
-        tab_selected_color = '#FFFFFF'
-        button_bg = '#3B82F6'
-        button_bg_hover = '#2563EB'
-        button_bg_active = '#1D4ED8'
-        expander_border = '#334155'
-        expander_shadow = '0 4px 6px rgba(0,0,0,0.25)'
-        metric_bg = '#0F172A'
-        metric_border = '#334155'
-        metric_shadow = '0 2px 4px rgba(0,0,0,0.35)'
-    else:
-        sidebar_bg = '#F0F2F6'
-        sidebar_border = '#E0E0E0'
-        sidebar_h_color = '#1E1E1E'
-        sidebar_text = '#1E1E1E'
-        tab_selected_bg = '#4F8BF9'
-        tab_selected_color = '#FFFFFF'
-        button_bg = '#4F8BF9'
-        button_bg_hover = '#3C72D3'
-        button_bg_active = '#2A5BAA'
-        expander_border = '#E0E0E0'
-        expander_shadow = '0 4px 6px rgba(0,0,0,0.05)'
-        metric_bg = '#FFFFFF'
-        metric_border = '#E0E0E0'
-        metric_shadow = '0 4px 6px rgba(0,0,0,0.05)'
-
-    st.markdown(
-        f"""
-    <style>
-    /* Brand overrides layered on base theme */
-    [data-testid="stSidebar"] {{
-        background-color: {sidebar_bg} !important;
-        border-right: 1px solid {sidebar_border} !important;
-    }}
-    [data-testid="stSidebar"] * {{
-        color: {sidebar_text} !important;
-    }}
-    [data-testid="stSidebar"] h1 {{
-        color: {sidebar_h_color} !important;
-    }}
-    [data-testid="stTabs"] button[aria-selected="true"] {{
-        background-color: {tab_selected_bg} !important;
-        color: {tab_selected_color} !important;
-    }}
-    [data-testid="stButton"] button {{
-        background-color: {button_bg} !important;
-    }}
-    [data-testid="stButton"] button:hover {{
-        background-color: {button_bg_hover} !important;
-    }}
-    [data-testid="stButton"] button:active {{
-        background-color: {button_bg_active} !important;
-    }}
-    [data-testid="stExpander"] {{
-        border: 1px solid {expander_border} !important;
-        box-shadow: {expander_shadow} !important;
-    }}
-    [data-testid="stMetric"] {{
-        background-color: {metric_bg} !important;
-        border: 1px solid {metric_border} !important;
-        box-shadow: {metric_shadow} !important;
-    }}
-    </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def load_css(theme: str | None = None):
-    """Backwards-compatible helper expected by app.py.
-    Applies base theme and brand overrides using the provided theme or session/default.
-    """
+    """Backwards-compatible helper to prevent import errors in the main app."""
     chosen_theme = theme or st.session_state.get('theme', 'light')
-    apply_base_styles(chosen_theme)
-    _apply_brand_overrides(chosen_theme)
+    apply_styles(chosen_theme)
