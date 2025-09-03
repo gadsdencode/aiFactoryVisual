@@ -1,11 +1,12 @@
 import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
 import altair as alt
-from utils.chart_themes import apply_chart_theme, get_chart_theme
+from utils.chart_themes import (
+    build_bar_chart,
+    build_scatter_chart,
+    build_heatmap,
+)
+from utils.styles import render_model_overview_card
 
 def _render_model_comparison_side_by_side():
     st.header("⚖️ Model Comparison")
@@ -115,58 +116,83 @@ def render_model_comparison():
         filtered_data = base_df[base_df['model_name'].isin(selected_models)]
         st.markdown("---")
         st.subheader("📊 Performance Overview")
+        # Determine the best model by selected metric: min for loss/time/memory, max for accuracy
+        metric = metric_to_compare
+        if metric == 'final_accuracy':
+            best_idx = filtered_data['final_accuracy'].idxmax()
+            best_badge = 'BEST ACC'
+        elif metric == 'final_loss':
+            best_idx = filtered_data['final_loss'].idxmin()
+            best_badge = 'LOWEST LOSS'
+        elif metric == 'training_time':
+            best_idx = filtered_data['training_time'].idxmin()
+            best_badge = 'FASTEST'
+        else:
+            best_idx = filtered_data['memory_usage'].idxmin()
+            best_badge = 'LOWEST MEM'
+
+        # Precompute baselines for deltas per metric against the best model
+        best_row = filtered_data.loc[best_idx]
+        baseline = {
+            'final_loss': float(best_row['final_loss']),
+            'final_accuracy': float(best_row['final_accuracy']),
+            'training_time': float(best_row['training_time']),
+            'memory_usage': float(best_row['memory_usage']),
+        }
+
         cols = st.columns(len(selected_models))
         for i, model in enumerate(selected_models):
-            model_data = filtered_data[filtered_data['model_name'] == model].iloc[0]
+            model_row = filtered_data[filtered_data['model_name'] == model].iloc[0]
             with cols[i]:
-                st.markdown(f"### {model}")
-                st.metric("Final Loss", f"{model_data['final_loss']:.4f}")
-                st.metric("Final Accuracy", f"{model_data['final_accuracy']:.2%}")
-                st.metric("Training Time", f"{model_data['training_time']:.1f}h")
-                st.metric("Memory Usage", f"{model_data['memory_usage']:.1f}GB")
+                render_model_overview_card(
+                    model_name=str(model_row['model_name']),
+                    final_loss=float(model_row['final_loss']) if pd.notna(model_row['final_loss']) else None,
+                    final_accuracy=float(model_row['final_accuracy']) if pd.notna(model_row['final_accuracy']) else None,
+                    training_time_hours=float(model_row['training_time']) if pd.notna(model_row['training_time']) else None,
+                    memory_gb=float(model_row['memory_usage']) if pd.notna(model_row['memory_usage']) else None,
+                    is_best=(model_row.name == best_idx),
+                    best_badge_text=best_badge if (model_row.name == best_idx) else None,
+                    baseline_loss=baseline['final_loss'],
+                    baseline_accuracy=baseline['final_accuracy'],
+                    baseline_training_time_hours=baseline['training_time'],
+                    baseline_memory_gb=baseline['memory_usage'],
+                )
         st.markdown("---")
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("🏆 Model Performance Comparison")
-            fig_bar = go.Figure()
-            theme = get_chart_theme()
-            fig_bar.add_trace(go.Bar(
-                x=filtered_data['model_name'],
-                y=filtered_data[metric_to_compare],
-                marker_color=theme['line_colors'][:len(selected_models)],
-                text=filtered_data[metric_to_compare].round(4),
-                textposition='auto'
-            ))
-            fig_bar.update_layout(
+            fig_bar = build_bar_chart(
+                x_values=filtered_data['model_name'],
+                y_values=filtered_data[metric_to_compare],
                 title=f"{metric_to_compare.replace('_', ' ').title()} Comparison",
                 xaxis_title="Model",
                 yaxis_title=metric_to_compare.replace('_', ' ').title(),
-                height=400
+                height=400,
+                show_text=True,
             )
-            fig_bar = apply_chart_theme(fig_bar)
             st.plotly_chart(fig_bar, width='stretch')
         with col2:
             st.subheader("⚡ Efficiency Analysis")
-            fig_scatter = go.Figure()
+            series_list = []
             for model in selected_models:
                 model_data = filtered_data[filtered_data['model_name'] == model]
-                fig_scatter.add_trace(go.Scatter(
-                    x=model_data['training_time'],
-                    y=model_data['final_accuracy'],
-                    mode='markers+text',
-                    name=model,
-                    text=model,
-                    textposition='top center',
-                    marker=dict(size=15, opacity=0.8)
-                ))
-            fig_scatter.update_layout(
+                series_list.append({
+                    'x': model_data['training_time'],
+                    'y': model_data['final_accuracy'],
+                    'name': model,
+                    'text': model,
+                    'textposition': 'top center',
+                    'size': 15,
+                    'opacity': 0.8,
+                })
+            fig_scatter = build_scatter_chart(
+                series_list,
                 title="Accuracy vs Training Time",
                 xaxis_title="Training Time (hours)",
                 yaxis_title="Final Accuracy",
                 height=400,
-                showlegend=False
+                showlegend=False,
             )
-            fig_scatter = apply_chart_theme(fig_scatter)
             st.plotly_chart(fig_scatter, width='stretch')
         st.subheader("📋 Detailed Comparison")
         comparison_df = filtered_data[['model_name', 'final_loss', 'final_accuracy', 
@@ -184,15 +210,14 @@ def render_model_comparison():
         st.subheader("🌡️ Performance Heatmap")
         heatmap_data = filtered_data[['model_name', 'final_loss', 'final_accuracy', 'training_time', 'memory_usage']].set_index('model_name')
         heatmap_normalized = heatmap_data.apply(lambda x: (x - x.min()) / (x.max() - x.min()))
-        fig_heatmap = go.Figure(data=go.Heatmap(
+        fig_heatmap = build_heatmap(
             z=heatmap_normalized.values,
-            x=['Final Loss', 'Final Accuracy', 'Training Time', 'Memory Usage'],
-            y=heatmap_normalized.index,
+            x_labels=['Final Loss', 'Final Accuracy', 'Training Time', 'Memory Usage'],
+            y_labels=heatmap_normalized.index,
+            title="Normalized Performance Metrics Heatmap",
+            height=400,
             colorscale='RdYlBu_r',
-            showscale=True
-        ))
-        fig_heatmap.update_layout(title="Normalized Performance Metrics Heatmap", height=400)
-        fig_heatmap = apply_chart_theme(fig_heatmap)
+        )
         st.plotly_chart(fig_heatmap, width='stretch')
         st.subheader("🏅 Model Recommendations")
         col1, col2, col3 = st.columns(3)
