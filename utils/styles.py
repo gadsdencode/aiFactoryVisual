@@ -475,6 +475,56 @@ def apply_base_styles(theme='light'):
             gap: var(--spacing);
             margin: var(--spacing) 0;
         }}
+
+        /* Generic card container for grouped UI elements */
+        .model-card {{
+            position: relative;
+            background-color: {card_bg} !important;
+            border: 1px solid {border_color} !important;
+            border-radius: 12px !important;
+            padding: calc(var(--spacing) * 0.9) !important;
+            box-shadow: {card_shadow} !important;
+            transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+        }}
+        .model-card h3, .model-card h4, .model-card p {{
+            color: {text_color} !important;
+            margin-top: 0.25rem !important;
+            margin-bottom: 0.5rem !important;
+        }}
+        .model-card:hover {{
+            border-color: var(--primary-color) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25) !important;
+        }}
+
+        /* Accented state for best/selected model */
+        .model-card.best {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px rgba(99,102,241,.35), 0 10px 22px rgba(99,102,241,.25) !important;
+        }}
+
+        /* Badge in top-right */
+        .model-card .card-badge {{
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 10px;
+            background: linear-gradient(90deg, var(--primary-color), #8B5CF6);
+            color: white !important;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .25px;
+        }}
+
+        /* Metric hover accent inside cards */
+        .model-card [data-testid="metric-container"] {{
+            transition: background-color .15s ease, border-color .15s ease;
+        }}
+        .model-card [data-testid="metric-container"]:hover {{
+            border-color: var(--primary-color) !important;
+            background-color: {hover_bg} !important;
+        }}
         
         /* Additional comprehensive styling */
         .css-10trblm, .css-16idsys, .css-1inwz65 {{
@@ -884,6 +934,77 @@ def inject_card(title: str | None = None, body_md: str | None = None):
             st.markdown(f"### {title}")
         if body_md:
             st.markdown(body_md)
+
+
+def render_model_overview_card(
+    model_name: str,
+    final_loss: float | None,
+    final_accuracy: float | None,
+    training_time_hours: float | None,
+    memory_gb: float | None,
+    is_best: bool = False,
+    best_badge_text: str | None = None,
+    baseline_loss: float | None = None,
+    baseline_accuracy: float | None = None,
+    baseline_training_time_hours: float | None = None,
+    baseline_memory_gb: float | None = None,
+):
+    """Render a standardized model overview card with a 2x2 metric layout.
+
+    This uses Streamlit metrics and relies on global CSS injected by apply_base_styles
+    to provide card-like styling. Keeps layout consistent across pages.
+    """
+    container = st.container()
+    with container:
+        classes = "model-card best" if is_best else "model-card"
+        st.markdown(f'<div class="{classes}">', unsafe_allow_html=True)
+        if is_best:
+            badge = best_badge_text or "BEST"
+            st.markdown(f'<div class="card-badge">{badge}</div>', unsafe_allow_html=True)
+        st.markdown(f"### {model_name}")
+        row1_c1, row1_c2 = st.columns(2)
+        with row1_c1:
+            # Loss: lower is better → inverse delta coloring
+            if final_loss is None:
+                st.metric("Final Loss", "-")
+            else:
+                delta_txt = None
+                if baseline_loss is not None:
+                    diff = float(final_loss) - float(baseline_loss)
+                    delta_txt = f"{diff:+.4f}"
+                st.metric("Final Loss", f"{final_loss:.4f}", delta=delta_txt, delta_color="inverse")
+        with row1_c2:
+            # Accuracy: higher is better
+            if final_accuracy is None:
+                st.metric("Final Accuracy", "-")
+            else:
+                delta_txt = None
+                if baseline_accuracy is not None:
+                    diff_pct = (float(final_accuracy) - float(baseline_accuracy)) * 100.0
+                    delta_txt = f"{diff_pct:+.2f}%"
+                st.metric("Final Accuracy", f"{final_accuracy:.2%}", delta=delta_txt, delta_color="normal")
+        row2_c1, row2_c2 = st.columns(2)
+        with row2_c1:
+            # Time: lower is better → inverse delta coloring
+            if training_time_hours is None:
+                st.metric("Training Time", "-")
+            else:
+                delta_txt = None
+                if baseline_training_time_hours is not None:
+                    diff = float(training_time_hours) - float(baseline_training_time_hours)
+                    delta_txt = f"{diff:+.1f}h"
+                st.metric("Training Time", f"{training_time_hours:.1f}h", delta=delta_txt, delta_color="inverse")
+        with row2_c2:
+            # Memory: lower is better → inverse delta coloring
+            if memory_gb is None:
+                st.metric("Memory Usage", "-")
+            else:
+                delta_txt = None
+                if baseline_memory_gb is not None:
+                    diff = float(memory_gb) - float(baseline_memory_gb)
+                    delta_txt = f"{diff:+.1f}GB"
+                st.metric("Memory Usage", f"{memory_gb:.1f}GB", delta=delta_txt, delta_color="inverse")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def apply_custom_styles(theme='light'):

@@ -1,10 +1,14 @@
 import streamlit as st
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
 import time
-from utils.chart_themes import apply_chart_theme, get_chart_theme
+from utils.chart_themes import (
+    apply_chart_theme,
+    get_chart_theme,
+    build_line_chart,
+    build_loss_figure_from_df,
+    build_accuracy_figure_from_df,
+)
 from backend.training_manager import get_training_manager
 
 def _render_training_dashboard_compact():
@@ -46,112 +50,11 @@ def _render_training_dashboard_compact():
         col_a, col_b = st.columns(2)
         with col_a:
             if 'epoch' in df.columns and 'train_loss' in df.columns:
-                theme_c = get_chart_theme()
-                fig_loss_c = go.Figure()
-                # Training loss
-                fig_loss_c.add_trace(go.Scatter(
-                    x=df['epoch'],
-                    y=df['train_loss'],
-                    mode='lines',
-                    name='Training Loss',
-                    line=dict(color=theme_c['line_colors'][0], width=3)
-                ))
-                # Validation loss if available
-                if 'val_loss' in df.columns and df['val_loss'].notna().any():
-                    fig_loss_c.add_trace(go.Scatter(
-                        x=df['epoch'],
-                        y=df['val_loss'],
-                        mode='lines',
-                        name='Validation Loss',
-                        line=dict(color=theme_c['line_colors'][1], width=3)
-                    ))
-                # Annotations
-                try:
-                    tl = df['train_loss'].dropna()
-                    el = df.loc[tl.index, 'epoch']
-                    if len(tl) >= 2:
-                        first_tl = float(tl.iloc[0])
-                        last_tl = float(tl.iloc[-1])
-                        last_ep = float(el.iloc[-1])
-                        if last_tl < first_tl * 0.9:
-                            fig_loss_c.add_annotation(
-                                x=last_ep,
-                                y=last_tl,
-                                text="Good! The model is learning.",
-                                showarrow=True,
-                                arrowhead=2,
-                                ay=-30,
-                                arrowcolor=theme_c['line_colors'][0]
-                            )
-                    if 'val_loss' in df.columns and df['val_loss'].notna().any():
-                        vl = df['val_loss'].dropna()
-                        evl = df.loc[vl.index, 'epoch']
-                        if len(vl) >= 1 and len(tl) >= 1:
-                            last_vl = float(vl.iloc[-1])
-                            last_vl_ep = float(evl.iloc[-1])
-                            last_tl_val = float(tl.iloc[-1])
-                            if last_tl_val < 0.7 * last_vl:
-                                fig_loss_c.add_annotation(
-                                    x=last_vl_ep,
-                                    y=last_vl,
-                                    text="Warning: The model might be 'memorizing' your data (overfitting).",
-                                    showarrow=True,
-                                    arrowhead=2,
-                                    ay=-40,
-                                    arrowcolor=theme_c['line_colors'][1]
-                                )
-                except Exception:
-                    pass
-                fig_loss_c.update_layout(
-                    title="Training & Validation Loss",
-                    xaxis_title="Epoch",
-                    yaxis_title="Loss",
-                    height=360,
-                    showlegend=True,
-                    hovermode='x unified'
-                )
-                fig_loss_c = apply_chart_theme(fig_loss_c)
+                fig_loss_c = build_loss_figure_from_df(df, height=360)
                 st.plotly_chart(fig_loss_c, use_container_width=True)
         with col_b:
             if 'epoch' in df.columns and 'val_accuracy' in df.columns:
-                theme_c = get_chart_theme()
-                fig_acc_c = go.Figure()
-                fig_acc_c.add_trace(go.Scatter(
-                    x=df['epoch'],
-                    y=df['val_accuracy'],
-                    mode='lines',
-                    name='Validation Accuracy',
-                    line=dict(color=theme_c['line_colors'][3], width=3)
-                ))
-                # Annotations
-                try:
-                    va = df['val_accuracy'].dropna()
-                    ea = df.loc[va.index, 'epoch']
-                    if len(va) >= 2:
-                        first_va = float(va.iloc[0])
-                        last_va = float(va.iloc[-1])
-                        last_ep = float(ea.iloc[-1])
-                        if (last_va - first_va) >= max(0.01, first_va * 0.02):
-                            fig_acc_c.add_annotation(
-                                x=last_ep,
-                                y=last_va,
-                                text="Excellent! The model is getting better at its task.",
-                                showarrow=True,
-                                arrowhead=2,
-                                ay=-30,
-                                arrowcolor=theme_c['line_colors'][3]
-                            )
-                except Exception:
-                    pass
-                fig_acc_c.update_layout(
-                    title="Validation Accuracy",
-                    xaxis_title="Epoch",
-                    yaxis_title="Accuracy",
-                    height=360,
-                    showlegend=True,
-                    hovermode='x unified'
-                )
-                fig_acc_c = apply_chart_theme(fig_acc_c)
+                fig_acc_c = build_accuracy_figure_from_df(df, height=360)
                 st.plotly_chart(fig_acc_c, use_container_width=True)
 
         with st.expander("📜 View Training Logs"):
@@ -350,153 +253,59 @@ def render_training_dashboard():
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("📈 Loss Curves")
-            fig_loss = go.Figure()
-            theme = get_chart_theme()
-            if not training_data.empty and 'epoch' in training_data.columns and 'train_loss' in training_data.columns:
-                fig_loss.add_trace(go.Scatter(
-                    x=training_data['epoch'],
-                    y=training_data['train_loss'],
-                    mode='lines',
-                    name='Training Loss',
-                    line=dict(color=theme['line_colors'][0], width=3)
-                ))
-                if 'val_loss' in training_data.columns and training_data['val_loss'].notna().any():
-                    fig_loss.add_trace(go.Scatter(
-                        x=training_data['epoch'],
-                        y=training_data['val_loss'],
-                        mode='lines',
-                        name='Validation Loss',
-                        line=dict(color=theme['line_colors'][1], width=3)
-                    ))
-                # Dynamic annotations for loss trends
-                try:
-                    tl = training_data['train_loss'].dropna()
-                    el = training_data.loc[tl.index, 'epoch'] if 'epoch' in training_data.columns else tl.index
-                    if len(tl) >= 2:
-                        first_tl = float(tl.iloc[0])
-                        last_tl = float(tl.iloc[-1])
-                        last_ep = float(el.iloc[-1])
-                        if last_tl < first_tl * 0.9:
-                            fig_loss.add_annotation(
-                                x=last_ep,
-                                y=last_tl,
-                                text="Good! The model is learning.",
-                                showarrow=True,
-                                arrowhead=2,
-                                ay=-30,
-                                arrowcolor=theme['line_colors'][0]
-                            )
-                    if 'val_loss' in training_data.columns and training_data['val_loss'].notna().any():
-                        vl = training_data['val_loss'].dropna()
-                        evl = training_data.loc[vl.index, 'epoch'] if 'epoch' in training_data.columns else vl.index
-                        if len(vl) >= 1 and len(tl) >= 1:
-                            last_vl = float(vl.iloc[-1])
-                            last_vl_ep = float(evl.iloc[-1])
-                            last_tl_val = float(tl.iloc[-1])
-                            # Overfitting heuristic: training loss much lower than validation loss
-                            if last_tl_val < 0.7 * last_vl:
-                                fig_loss.add_annotation(
-                                    x=last_vl_ep,
-                                    y=last_vl,
-                                    text="Warning: The model might be 'memorizing' your data (overfitting).",
-                                    showarrow=True,
-                                    arrowhead=2,
-                                    ay=-40,
-                                    arrowcolor=theme['line_colors'][1]
-                                )
-                except Exception:
-                    pass
-            fig_loss.update_layout(
-                title="Training & Validation Loss",
-                xaxis_title="Epoch",
-                yaxis_title="Loss",
-                height=400,
-                showlegend=True,
-                hovermode='x unified'
-            )
-            fig_loss = apply_chart_theme(fig_loss)
+            fig_loss = build_loss_figure_from_df(training_data, height=400)
             st.plotly_chart(fig_loss, width='stretch')
         with col2:
             st.subheader("🎯 Accuracy Metrics")
-            fig_acc = go.Figure()
-            if not training_data.empty and 'epoch' in training_data.columns and 'val_accuracy' in training_data.columns and training_data['val_accuracy'].notna().any():
-                fig_acc.add_trace(go.Scatter(
-                    x=training_data['epoch'],
-                    y=training_data['val_accuracy'],
-                    mode='lines',
-                    name='Evaluation Accuracy',
-                    line=dict(color=theme['line_colors'][3], width=3)
-                ))
-                # Dynamic annotations for accuracy trends
-                try:
-                    va = training_data['val_accuracy'].dropna()
-                    ea = training_data.loc[va.index, 'epoch'] if 'epoch' in training_data.columns else va.index
-                    if len(va) >= 2:
-                        first_va = float(va.iloc[0])
-                        last_va = float(va.iloc[-1])
-                        last_ep = float(ea.iloc[-1])
-                        # Significant increase
-                        if (last_va - first_va) >= max(0.01, first_va * 0.02):
-                            fig_acc.add_annotation(
-                                x=last_ep,
-                                y=last_va,
-                                text="Excellent! The model is getting better at its task.",
-                                showarrow=True,
-                                arrowhead=2,
-                                ay=-30,
-                                arrowcolor=theme['line_colors'][3]
-                            )
-                except Exception:
-                    pass
-            fig_acc.update_layout(
-                title="Training & Validation Accuracy",
-                xaxis_title="Epoch",
-                yaxis_title="Accuracy",
-                height=400,
-                showlegend=True,
-                hovermode='x unified'
-            )
-            fig_acc = apply_chart_theme(fig_acc)
+            fig_acc = build_accuracy_figure_from_df(training_data, height=400)
             st.plotly_chart(fig_acc, width='stretch')
     
     # Learning rate schedule & Grad Norm
     with tabs[0]:
         st.subheader("📊 Learning Rate Schedule")
-        fig_lr = go.Figure()
-        if not training_data.empty and 'epoch' in training_data.columns and 'learning_rate' in training_data.columns:
-            fig_lr.add_trace(go.Scatter(
-                x=training_data['epoch'],
-                y=training_data['learning_rate'],
-                mode='lines',
-                name='Learning Rate',
-                line=dict(color=theme['line_colors'][4], width=3),
-                fill='tozeroy',
-                fillcolor='rgba(239, 68, 68, 0.1)'
-            ))
-        fig_lr.update_layout(
+        fig_lr = build_line_chart(
+            series_list=(
+                [
+                    {
+                        'x': training_data['epoch'],
+                        'y': training_data['learning_rate'],
+                        'name': 'Learning Rate',
+                        'color_index': 4,
+                        'fill': 'tozeroy',
+                        'fillcolor': 'rgba(239, 68, 68, 0.1)',
+                    }
+                ]
+                if (not training_data.empty and 'epoch' in training_data.columns and 'learning_rate' in training_data.columns)
+                else []
+            ),
             title="Learning Rate Schedule",
             xaxis_title="Epoch",
             yaxis_title="Learning Rate",
             height=300,
-            showlegend=False
+            showlegend=False,
         )
-        fig_lr = apply_chart_theme(fig_lr)
         st.plotly_chart(fig_lr, width='stretch')
 
     # Grad Norm chart (if available)
     with tabs[0]:
         if not training_data.empty and 'grad_norm' in training_data.columns and training_data['grad_norm'].notna().any():
             st.subheader("📐 Gradient Norm")
-            fig_g = go.Figure()
-            fig_g.add_trace(go.Scatter(
-                x=training_data['epoch'] if 'epoch' in training_data.columns else training_data.index,
-                y=training_data['grad_norm'],
-                mode='lines',
-                name='Grad Norm',
-                line=dict(color=theme['line_colors'][5 % len(theme['line_colors'])], width=3),
-            ))
-            fig_g.update_layout(title="Gradient Norm", xaxis_title="Epoch", yaxis_title="Norm", height=300, showlegend=False)
-            fig_g = apply_chart_theme(fig_g)
+            x_vals = training_data['epoch'] if 'epoch' in training_data.columns else training_data.index
+            fig_g = build_line_chart(
+                [
+                    {
+                        'x': x_vals,
+                        'y': training_data['grad_norm'],
+                        'name': 'Grad Norm',
+                        'color_index': 5,
+                    }
+                ],
+                title="Gradient Norm",
+                xaxis_title="Epoch",
+                yaxis_title="Norm",
+                height=300,
+                showlegend=False,
+            )
             st.plotly_chart(fig_g, width='stretch')
     
     # Logs and recent steps organized into the Logs tab
